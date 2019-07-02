@@ -8,3 +8,7 @@ edition = "2018"
 tokio = "*"
 prost = "*"
 rocksdb = "*"
+bytes = "*"
+
+[build-dependencies]
+prost-build = "*"
