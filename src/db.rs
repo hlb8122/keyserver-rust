@@ -9,7 +9,7 @@ struct KeyDB(DB);
 
 impl KeyDB {
     fn try_new(path: &str) -> Result<Self, Error> {
-        DB::open_default(path).map(|db| KeyDB(db))
+        DB::open_default(path).map(KeyDB)
     }
 
     fn try_default() -> Result<Self, Error> {
