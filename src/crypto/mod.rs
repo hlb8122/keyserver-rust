@@ -1,19 +1,49 @@
 pub mod ecdsa;
 
+pub enum CryptoError {
+    Deserialization,
+    Verification,
+}
+
 pub trait PrivateKey {
-    fn get_address(&self) -> Vec<u8>;
+    fn get_address<A: Address>(&self) -> A;
 }
 
-pub trait PublicKey {
-    fn get_address(&self) -> Vec<u8>;
+pub trait PublicKey
+where
+    Self: Sized,
+{
+    fn to_address<A: Address>(&self) -> A;
     fn serialize(&self) -> Vec<u8>;
+    fn deserialize(raw: &[u8]) -> Result<Self, CryptoError>;
 }
 
-pub trait Signature {}
+pub trait Signature
+where
+    Self: Sized,
+{
+    fn deserialize(raw: &[u8]) -> Result<Self, CryptoError>;
+}
 
-pub trait SigScheme {
+pub trait SigScheme
+where
+    Self: Default,
+{
     type PublicKey: PublicKey;
     type Signature: Signature;
 
-    fn verify(&self, msg: &[u8], key: &Self::PublicKey, sig: &Self::Signature) -> bool;
+    fn verify(
+        &self,
+        msg: &[u8],
+        key: &Self::PublicKey,
+        sig: &Self::Signature,
+    ) -> Result<(), CryptoError>;
+}
+
+pub trait Address
+where
+    Self: From<Vec<u8>>,
+    Self: PartialEq,
+{
+    fn serialize(&self) -> Vec<u8>;
 }
