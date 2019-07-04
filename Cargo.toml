@@ -9,6 +9,8 @@ tokio = "*"
 prost = "*"
 rocksdb = "*"
 bytes = "*"
+secp256k1 = "*"
+bitcoin_hashes = "*"
 
 [build-dependencies]
 prost-build = "*"
