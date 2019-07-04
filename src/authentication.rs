@@ -38,8 +38,5 @@ pub fn validate<A: Address, S: SigScheme>(
     let payload_digest = &sha256::Hash::hash(&raw_payload)[..];
     let sig = S::Signature::deserialize(&metadata.signature).map_err(|e| e.into())?;
 
-    let context = S::default();
-    context
-        .verify(payload_digest, &meta_pk, &sig)
-        .map_err(|e| e.into())
+    S::verify(payload_digest, &meta_pk, &sig).map_err(|e| e.into())
 }

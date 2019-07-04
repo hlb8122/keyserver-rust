@@ -25,19 +25,11 @@ where
     fn deserialize(raw: &[u8]) -> Result<Self, CryptoError>;
 }
 
-pub trait SigScheme
-where
-    Self: Default,
-{
+pub trait SigScheme {
     type PublicKey: PublicKey;
     type Signature: Signature;
 
-    fn verify(
-        &self,
-        msg: &[u8],
-        key: &Self::PublicKey,
-        sig: &Self::Signature,
-    ) -> Result<(), CryptoError>;
+    fn verify(msg: &[u8], key: &Self::PublicKey, sig: &Self::Signature) -> Result<(), CryptoError>;
 }
 
 pub trait Address

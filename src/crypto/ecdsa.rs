@@ -31,30 +31,15 @@ impl Signature for Secp256k1Sig {
     }
 }
 
-pub struct Secp256k1 {
-    context: secp256k1::Secp256k1<secp256k1::VerifyOnly>,
-}
-
-impl Default for Secp256k1 {
-    fn default() -> Self {
-        Secp256k1 {
-            context: secp256k1::Secp256k1::verification_only(),
-        }
-    }
-}
+pub struct Secp256k1 {}
 
 impl SigScheme for Secp256k1 {
     type PublicKey = Secp256k1PublicKey;
     type Signature = Secp256k1Sig;
 
-    fn verify(
-        &self,
-        msg: &[u8],
-        key: &Self::PublicKey,
-        sig: &Self::Signature,
-    ) -> Result<(), CryptoError> {
+    fn verify(msg: &[u8], key: &Self::PublicKey, sig: &Self::Signature) -> Result<(), CryptoError> {
         let msg = secp256k1::Message::from_slice(msg).unwrap();
-        self.context
+        secp256k1::Secp256k1::verification_only()
             .verify(&msg, &sig.0, &key.0)
             .map_err(|_| CryptoError::Verification)
     }
