@@ -32,4 +32,18 @@ impl KeyDB {
             .get(addr.serialize())
             .map(|opt_dat| opt_dat.map(|dat| AddressMetadata::decode(&dat[..]).unwrap()))
     }
+
+    fn is_recent(&self, addr: &impl Address, metadata: &AddressMetadata) -> Result<bool, Error> {
+        let old_metadata_opt = self.get(addr)?;
+        match old_metadata_opt {
+            Some(old_metadata) => match (metadata.payload.as_ref(), old_metadata.payload) {
+                (Some(new_payload), Some(old_payload)) => {
+                    Ok(new_payload.timestamp > old_payload.timestamp)
+                }
+                (_, None) => Ok(true),
+                (None, Some(_)) => Ok(false),
+            },
+            None => Ok(false),
+        }
+    }
 }
