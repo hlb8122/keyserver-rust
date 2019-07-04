@@ -11,6 +11,9 @@ rocksdb = "*"
 bytes = "*"
 secp256k1 = "*"
 bitcoin_hashes = "*"
+serde = "*"
+serde_json = "*"
+reqwest = "*"
 
 [build-dependencies]
 prost-build = "*"
