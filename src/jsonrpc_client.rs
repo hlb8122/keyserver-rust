@@ -1,9 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
-use tokio::prelude::{Future, future};
-use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, value::from_value, Value};
+use tokio::prelude::{future, Future};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Request {
