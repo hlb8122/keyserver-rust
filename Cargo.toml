@@ -15,6 +15,7 @@ serde = "*"
 serde_json = "*"
 reqwest = "*"
 tower-web = "*"
+hex = "*"
 
 [build-dependencies]
 prost-build = "*"

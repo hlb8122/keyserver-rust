@@ -17,14 +17,17 @@ impl Into<ValidationError> for CryptoError {
     }
 }
 
-pub fn validate<A: Address, S: SigScheme>(
-    addr: &A,
+pub fn validate<AS: AddressScheme, S>(
+    addr: &AS::Address,
     metadata: &AddressMetadata,
-) -> Result<(), ValidationError> {
+) -> Result<(), ValidationError>
+where
+    S: SigScheme<PublicKey = AS::PublicKey>
+{
     let meta_pk = S::PublicKey::deserialize(&metadata.pub_key).map_err(|e| e.into())?;
 
     // Check preimage
-    if meta_pk.to_address::<A>() == *addr {
+    if AS::pubkey_to_addr(&meta_pk) == *addr {
         return Err(ValidationError::Preimage);
     }
 
