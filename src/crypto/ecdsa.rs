@@ -1,15 +1,8 @@
-use bitcoin_hashes::{ripemd160, Hash};
-
 use super::*;
 
 pub struct Secp256k1PublicKey(secp256k1::PublicKey);
 
 impl PublicKey for Secp256k1PublicKey {
-    fn to_address<A: Address>(&self) -> A {
-        // TODO: Convert to script address?
-        A::from(ripemd160::Hash::hash(&self.0.serialize())[..].to_vec())
-    }
-
     fn serialize(&self) -> Vec<u8> {
         self.0.serialize().to_vec()
     }
