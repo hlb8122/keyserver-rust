@@ -1,17 +1,16 @@
 use prost::Message;
-use tokio::prelude::*;
 use tower_web::*;
 
-use crate::{db::KeyDB, crypto::bitcoin_addr::BitcoinAddress};
+use crate::{db::KeyDB, crypto::bitcoin_addr::BitcoinAddress, crypto::Address};
 
 struct RestInterface(KeyDB);
 
 impl_web! {
     impl RestInterface {
         #[get("/keys/:key")]
-        fn get(&self, addr_raw: String) -> Result<String, ()> {
-            let addr_hex = hex::decode(addr_raw).map_err(|_| ())?;
-            let addr: BitcoinAddress = addr_hex.into();
+        fn get(&self, addr_str: String) -> Result<String, ()> {
+            let addr_raw = hex::decode(addr_str).map_err(|_| ())?;
+            let addr = BitcoinAddress::deserialize(&addr_raw).map_err(|_| ())?;
             match self.0.get(&addr).map_err(|_| ())? {
                 Some(some) => {
                     let mut raw_payload = Vec::with_capacity(some.encoded_len());
