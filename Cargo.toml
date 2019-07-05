@@ -14,6 +14,7 @@ bitcoin_hashes = "*"
 serde = "*"
 serde_json = "*"
 reqwest = "*"
+tower-web = "*"
 
 [build-dependencies]
 prost-build = "*"
