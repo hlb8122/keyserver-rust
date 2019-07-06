@@ -16,6 +16,7 @@ serde_json = "*"
 reqwest = "*"
 actix-web = "*"
 hex = "*"
+env_logger = "*"
 
 [build-dependencies]
 prost-build = "*"

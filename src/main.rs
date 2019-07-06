@@ -5,7 +5,7 @@ pub mod jsonrpc_client;
 pub mod net;
 pub mod token;
 
-use actix_web::{web, App, HttpServer};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 
 use crate::{db::KeyDB, net::rest_server::*};
 
@@ -17,11 +17,21 @@ const BIND_ADDR: &str = "127.0.0.1:8080";
 
 fn main() {
     println!("starting server @ {}", BIND_ADDR);
+
+    // Init logging
+    std::env::set_var("RUST_LOG", "actix_web=info");
+    env_logger::init();
+
+    // Open DB
     let key_db = KeyDB::try_default().unwrap();
+
+    // Init REST server
     HttpServer::new(move || {
         let key_db_inner = key_db.clone();
         App::new()
             .data(State(key_db_inner))
+            .wrap(Logger::default())
+            .wrap(Logger::new("%a %{User-Agent}i"))
             .route("/keys/", web::get().to(keys_index))
             .route("/keys/{addr}", web::get().to(get_key))
             .route("/keys/{addr}", web::put().to(put_key))
