@@ -17,6 +17,7 @@ reqwest = "*"
 actix-web = "*"
 hex = "*"
 env_logger = "*"
+actix-files = "*"
 
 [build-dependencies]
 prost-build = "*"

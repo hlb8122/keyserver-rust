@@ -32,9 +32,14 @@ fn main() {
             .data(State(key_db_inner))
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
-            .route("/keys/", web::get().to(keys_index))
-            .route("/keys/{addr}", web::get().to(get_key))
-            .route("/keys/{addr}", web::put().to(put_key))
+            .service(
+                web::scope("/keys").service(
+                    web::resource("/{addr}")
+                        .route(web::get().to(get_key))
+                        .route(web::put().to(put_key)),
+                ),
+            )
+            .service(actix_files::Files::new("/", "./static/").index_file("index.html"))
     })
     .bind(BIND_ADDR)
     .expect("Can not bind to port 8080")

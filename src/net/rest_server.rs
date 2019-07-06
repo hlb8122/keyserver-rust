@@ -7,10 +7,6 @@ use crate::{crypto::bitcoin_addr::BitcoinAddress, crypto::*, db::KeyDB, models::
 
 pub struct State(pub KeyDB);
 
-pub fn keys_index() -> String {
-    "You have found a keytp server.".to_string()
-}
-
 pub fn get_key(
     addr_hex: web::Path<String>,
     data: web::Data<State>,
