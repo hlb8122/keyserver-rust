@@ -7,7 +7,7 @@ pub mod token;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
 
-use crate::{db::KeyDB, net::rest_server::*};
+use crate::{db::KeyDB, net::*};
 
 pub mod models {
     include!(concat!(env!("OUT_DIR"), "/models.rs"));
