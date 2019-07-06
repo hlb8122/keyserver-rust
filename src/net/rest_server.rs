@@ -1,7 +1,7 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use prost::Message;
 
-use crate::{crypto::bitcoin_addr::BitcoinAddress, crypto::Address, db::KeyDB};
+use crate::{crypto::bitcoin_addr::BitcoinAddress, crypto::*, db::KeyDB};
 
 pub struct State(pub KeyDB);
 
@@ -9,16 +9,17 @@ pub fn keys_index() -> String {
     "You have found a keytp server.".to_string()
 }
 
-pub fn get_key(req: HttpRequest, data: web::Data<State>) -> HttpResponse {    
-    let addr_str: String = req.match_info().get("addr").unwrap().parse().unwrap();
-    let addr_raw = match hex::decode(addr_str).map_err(|_| ()) {
+pub fn get_key(req: HttpRequest, data: web::Data<State>) -> HttpResponse {
+    let addr_hex: String = req.match_info().get("addr").unwrap().parse().unwrap();
+    let addr = match BitcoinAddress::from_hex(addr_hex) {
         Ok(ok) => ok,
-        Err(_) => return HttpResponse::BadRequest().body("non-hex address"),
-    };
-
-    let addr = match BitcoinAddress::deserialize(&addr_raw).map_err(|_| ()) {
-        Ok(ok) => ok,
-        Err(_) => return HttpResponse::BadRequest().body("invalid address"),
+        Err(e) => {
+            return match e {
+                CryptoError::NonHexAddress => HttpResponse::BadRequest().body("non-hex address"),
+                CryptoError::Deserialization => HttpResponse::BadRequest().body("invalid address"),
+                _ => unreachable!(),
+            }
+        }
     };
 
     match data.0.get(&addr) {
@@ -33,3 +34,8 @@ pub fn get_key(req: HttpRequest, data: web::Data<State>) -> HttpResponse {
         Err(_) => HttpResponse::InternalServerError().body("database read failure"),
     }
 }
+
+// pub fn put_key(req: HttpRequest, data: web::Data<State>) -> HttpResponse {
+//     let addr_str: String = req.match_info().get("addr").unwrap().parse().unwrap();
+
+// }

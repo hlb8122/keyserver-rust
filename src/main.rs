@@ -5,8 +5,6 @@ pub mod jsonrpc_client;
 pub mod net;
 pub mod token;
 
-use std::sync::Arc;
-
 use actix_web::{web, App, HttpServer};
 
 use crate::{db::KeyDB, net::rest_server::*};
