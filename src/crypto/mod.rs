@@ -1,17 +1,8 @@
 pub mod bitcoin_addr;
 pub mod ecdsa;
+pub mod errors;
 
-pub enum CryptoError {
-    Deserialization,
-    Verification,
-    NonHexAddress,
-}
-
-impl From<hex::FromHexError> for CryptoError {
-    fn from(_err: hex::FromHexError) -> Self {
-        CryptoError::NonHexAddress
-    }
-}
+use errors::CryptoError;
 
 pub trait PublicKey
 where
