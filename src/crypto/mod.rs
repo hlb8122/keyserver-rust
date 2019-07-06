@@ -31,7 +31,7 @@ pub trait SigScheme {
 pub trait Address
 where
     Self: Sized,
-    Self: PartialEq
+    Self: PartialEq,
 {
     fn serialize(&self) -> Vec<u8>;
     fn deserialize(raw: &[u8]) -> Result<Self, CryptoError>;

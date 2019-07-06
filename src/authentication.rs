@@ -22,7 +22,7 @@ pub fn validate<AS: AddressScheme, S>(
     metadata: &AddressMetadata,
 ) -> Result<(), ValidationError>
 where
-    S: SigScheme<PublicKey = AS::PublicKey>
+    S: SigScheme<PublicKey = AS::PublicKey>,
 {
     let meta_pk = S::PublicKey::deserialize(&metadata.pub_key).map_err(|e| e.into())?;
 

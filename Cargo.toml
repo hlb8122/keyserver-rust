@@ -14,7 +14,7 @@ bitcoin_hashes = "*"
 serde = "*"
 serde_json = "*"
 reqwest = "*"
-tower-web = "*"
+actix-web = "*"
 hex = "*"
 
 [build-dependencies]
