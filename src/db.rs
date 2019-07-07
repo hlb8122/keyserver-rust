@@ -1,4 +1,4 @@
-use crate::crypto::Address;
+use crate::crypto::address::Address;
 use crate::models::AddressMetadata;
 use prost::Message;
 use rocksdb::{Error, DB};
@@ -23,24 +23,20 @@ impl KeyDB {
         drop(self)
     }
 
-    pub fn put(&self, addr: &impl Address, metadata: &AddressMetadata) -> Result<(), Error> {
+    pub fn put(&self, addr: &Address, metadata: &AddressMetadata) -> Result<(), Error> {
         let mut raw_metadata = Vec::with_capacity(metadata.encoded_len());
         metadata.encode(&mut raw_metadata).unwrap();
-        self.0.put(addr.serialize(), raw_metadata)
+        self.0.put(&addr, raw_metadata)
     }
 
-    pub fn get(&self, addr: &impl Address) -> Result<Option<AddressMetadata>, Error> {
+    pub fn get(&self, addr: &Address) -> Result<Option<AddressMetadata>, Error> {
         // This panics if stored bytes are fucked
         self.0
-            .get(addr.serialize())
+            .get(&addr)
             .map(|opt_dat| opt_dat.map(|dat| AddressMetadata::decode(&dat[..]).unwrap()))
     }
 
-    pub fn is_recent(
-        &self,
-        addr: &impl Address,
-        metadata: &AddressMetadata,
-    ) -> Result<bool, Error> {
+    pub fn is_recent(&self, addr: &Address, metadata: &AddressMetadata) -> Result<bool, Error> {
         let old_metadata_opt = self.get(addr)?;
         match old_metadata_opt {
             Some(old_metadata) => match (metadata.payload.as_ref(), old_metadata.payload) {

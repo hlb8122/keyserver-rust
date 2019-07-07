@@ -1,4 +1,4 @@
-pub mod bitcoin_addr;
+pub mod address;
 pub mod ecdsa;
 pub mod errors;
 
@@ -24,39 +24,4 @@ pub trait SigScheme {
     type Signature: Signature;
 
     fn verify(msg: &[u8], key: &Self::PublicKey, sig: &Self::Signature) -> Result<(), CryptoError>;
-}
-
-pub trait Address
-where
-    Self: Sized,
-    Self: PartialEq,
-{
-    fn serialize(&self) -> Vec<u8>;
-    fn deserialize(raw: &[u8]) -> Result<Self, CryptoError>;
-}
-
-pub trait Hexable
-where
-    Self: Sized,
-{
-    fn from_hex(hex: String) -> Result<Self, CryptoError>;
-    fn into_hex(self) -> String;
-}
-
-impl<U: Address> Hexable for U {
-    fn from_hex(hex: String) -> Result<Self, CryptoError> {
-        let addr_raw = hex::decode(hex)?;
-        Address::deserialize(&addr_raw)
-    }
-
-    fn into_hex(self) -> String {
-        hex::encode(self.serialize())
-    }
-}
-
-pub trait AddressScheme {
-    type PublicKey: PublicKey;
-    type Address: Address;
-
-    fn pubkey_to_addr(pk: &Self::PublicKey) -> Self::Address;
 }

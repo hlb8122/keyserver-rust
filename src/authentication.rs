@@ -1,4 +1,4 @@
-use crate::crypto::{errors::CryptoError, *};
+use crate::crypto::{address::*, errors::CryptoError, *};
 use crate::models::AddressMetadata;
 
 use bitcoin_hashes::{sha256, Hash};
@@ -17,17 +17,14 @@ impl Into<ValidationError> for CryptoError {
     }
 }
 
-pub fn validate<AS: AddressScheme, S>(
-    addr: &AS::Address,
+pub fn validate<S: SigScheme>(
+    addr: &Address,
     metadata: &AddressMetadata,
-) -> Result<(), ValidationError>
-where
-    S: SigScheme<PublicKey = AS::PublicKey>,
-{
+) -> Result<(), ValidationError> {
     let meta_pk = S::PublicKey::deserialize(&metadata.pub_key).map_err(|e| e.into())?;
 
     // Check preimage
-    if AS::pubkey_to_addr(&meta_pk) == *addr {
+    if meta_pk.to_addr(addr.scheme.clone()) == *addr {
         return Err(ValidationError::Preimage);
     }
 

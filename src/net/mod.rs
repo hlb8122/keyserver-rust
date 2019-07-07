@@ -5,17 +5,17 @@ use actix_web::{web, HttpResponse};
 use bytes::Bytes;
 use prost::Message;
 
-use crate::{crypto::bitcoin_addr::BitcoinAddress, crypto::*, db::KeyDB, models::AddressMetadata};
+use crate::{crypto::address::*, db::KeyDB, models::AddressMetadata};
 use errors::ServerError;
 
 pub struct State(pub KeyDB);
 
 pub fn get_key(
-    addr_hex: web::Path<String>,
+    addr_str: web::Path<String>,
     data: web::Data<State>,
 ) -> Result<HttpResponse, ServerError> {
     // Convert address
-    let addr = BitcoinAddress::from_hex(addr_hex.to_string())?;
+    let addr = Address::decode(addr_str.to_string())?;
 
     // Grab metadata from DB
     let metadata = data.0.get(&addr)?.ok_or(ServerError::NotFound)?;
@@ -25,16 +25,16 @@ pub fn get_key(
     metadata.encode(&mut raw_payload).unwrap();
 
     // Respond
-    Ok(HttpResponse::Ok().body(hex::encode(raw_payload)))
+    Ok(HttpResponse::Ok().body(raw_payload))
 }
 
 pub fn put_key(
-    addr_hex: web::Path<String>,
+    addr_str: web::Path<String>,
     body: Bytes,
     data: web::Data<State>,
 ) -> Result<HttpResponse, ServerError> {
     // Convert address
-    let addr = BitcoinAddress::from_hex(addr_hex.to_string())?;
+    let addr = Address::decode(addr_str.to_string())?;
 
     // Decode metadata
     let metadata = AddressMetadata::decode(body)?;

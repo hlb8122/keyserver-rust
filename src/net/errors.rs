@@ -52,7 +52,10 @@ impl error::ResponseError for ServerError {
             ServerError::MetadataDecode => HttpResponse::NotFound().body("malformed metadata"),
             ServerError::Crypto(err) => match err {
                 CryptoError::Deserialization => HttpResponse::BadRequest().body("invalid address"),
-                CryptoError::NonHexAddress => HttpResponse::BadRequest().body("non-hex address"),
+                CryptoError::Decoding => HttpResponse::BadRequest().body("address decoding failed"),
+                CryptoError::Encoding => {
+                    HttpResponse::InternalServerError().body("address encoding failed")
+                }
                 CryptoError::Verification => HttpResponse::BadRequest().body("validation failed"),
             },
         }

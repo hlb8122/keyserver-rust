@@ -4,7 +4,8 @@ use std::fmt;
 pub enum CryptoError {
     Deserialization,
     Verification,
-    NonHexAddress,
+    Decoding,
+    Encoding,
 }
 
 impl fmt::Display for CryptoError {
@@ -12,14 +13,9 @@ impl fmt::Display for CryptoError {
         let printable = match *self {
             CryptoError::Deserialization => "deserialization error",
             CryptoError::Verification => "verification error",
-            CryptoError::NonHexAddress => "hex decoding error",
+            CryptoError::Decoding => "address decoding error",
+            CryptoError::Encoding => "address encoding error",
         };
         write!(f, "{}", printable)
-    }
-}
-
-impl From<hex::FromHexError> for CryptoError {
-    fn from(_: hex::FromHexError) -> Self {
-        CryptoError::NonHexAddress
     }
 }

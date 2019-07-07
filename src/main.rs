@@ -42,7 +42,7 @@ fn main() {
             .service(actix_files::Files::new("/", "./static/").index_file("index.html"))
     })
     .bind(BIND_ADDR)
-    .expect(&format!("failed to bind to {}", BIND_ADDR))
+    .unwrap_or_else(|_| panic!("failed to bind to {}", BIND_ADDR))
     .run()
     .unwrap();
 }
