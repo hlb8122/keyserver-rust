@@ -1,3 +1,4 @@
+pub mod base58;
 pub mod cashaddr;
 
 use bitcoin_hashes::{ripemd160, Hash};
@@ -12,7 +13,7 @@ pub enum Network {
 
 #[derive(PartialEq, Clone)]
 pub enum AddressScheme {
-    Base54,
+    Base58,
     CashAddr,
 }
 
@@ -34,32 +35,29 @@ impl Address {
             AddressScheme::CashAddr => {
                 cashaddr::CashAddrCodec::encode(&self.payload, Network::Mainnet)
             }
-            AddressScheme::Base54 => unreachable!(),
+            AddressScheme::Base58 => base58::Base58Codec::encode(&self.payload, Network::Mainnet),
         }
     }
 
-    pub fn decode(input: String) -> Result<Self, CryptoError> {
+    pub fn decode(input: &str) -> Result<Self, CryptoError> {
         cashaddr::CashAddrCodec::decode(input, Network::Mainnet)
+        .or_else(|_| base58::Base58Codec::decode(input, Network::Mainnet))
+        
     }
 }
 
 pub trait Addressable {
-    fn to_addr(&self, scheme: AddressScheme) -> Address;
+    fn to_raw_address(&self) -> Vec<u8>;
 }
 
 impl<P: PublicKey> Addressable for P {
-    fn to_addr(&self, scheme: AddressScheme) -> Address {
-        let payload = match scheme {
-            AddressScheme::Base54 => ripemd160::Hash::hash(&self.serialize()).to_vec(),
-            _ => unreachable!(),
-        };
-
-        Address { scheme, payload }
+    fn to_raw_address(&self) -> Vec<u8> {
+        ripemd160::Hash::hash(&self.serialize()).to_vec()
     }
 }
 
 pub trait AddressCodec {
     fn encode(raw: &[u8], network: Network) -> Result<String, CryptoError>;
 
-    fn decode(s: String, network: Network) -> Result<Address, CryptoError>;
+    fn decode(s: &str, network: Network) -> Result<Address, CryptoError>;
 }

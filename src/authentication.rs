@@ -24,7 +24,7 @@ pub fn validate<S: SigScheme>(
     let meta_pk = S::PublicKey::deserialize(&metadata.pub_key).map_err(|e| e.into())?;
 
     // Check preimage
-    if meta_pk.to_addr(addr.scheme.clone()) == *addr {
+    if &*meta_pk.to_raw_address() == addr.as_ref() {
         return Err(ValidationError::Preimage);
     }
 

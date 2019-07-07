@@ -18,6 +18,7 @@ rocksdb = "*"
 serde = "*"
 serde_json = "*"
 futures = "*"
+rust-base58 = "*"
 
 [build-dependencies]
 prost-build = "*"

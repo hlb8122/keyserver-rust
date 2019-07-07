@@ -9,16 +9,16 @@ pub struct CashAddrCodec;
 impl AddressCodec for CashAddrCodec {
     fn encode(raw: &[u8], network: Network) -> Result<String, CryptoError> {
         let version_byte = match raw.len() {
-                20 => version_byte_flags::SIZE_160,
-                24 => version_byte_flags::SIZE_192,
-                28 => version_byte_flags::SIZE_224,
-                32 => version_byte_flags::SIZE_256,
-                40 => version_byte_flags::SIZE_320,
-                48 => version_byte_flags::SIZE_384,
-                56 => version_byte_flags::SIZE_448,
-                64 => version_byte_flags::SIZE_512,
-                _ => return Err(CryptoError::Encoding),
-            };
+            20 => version_byte_flags::SIZE_160,
+            24 => version_byte_flags::SIZE_192,
+            28 => version_byte_flags::SIZE_224,
+            32 => version_byte_flags::SIZE_256,
+            40 => version_byte_flags::SIZE_320,
+            48 => version_byte_flags::SIZE_384,
+            56 => version_byte_flags::SIZE_448,
+            64 => version_byte_flags::SIZE_512,
+            _ => return Err(CryptoError::Encoding),
+        };
 
         // Get prefix
         let prefix = match network {
@@ -64,7 +64,7 @@ impl AddressCodec for CashAddrCodec {
         Ok(cashaddr)
     }
 
-    fn decode(input: String, network: Network) -> Result<Address, CryptoError> {
+    fn decode(input: &str, network: Network) -> Result<Address, CryptoError> {
         // Do some sanity checks on the string
         let mut upper = false;
         let mut lower = false;
@@ -285,7 +285,8 @@ mod tests {
         // 32-byte public key hash on mainnet
         verify(
             Network::Mainnet,
-            &hex::decode("3173EF6623C6B48FFD1A3DCC0CC6489B0A07BB47A37F47CFEF4FE69DE825C060").unwrap(),
+            &hex::decode("3173EF6623C6B48FFD1A3DCC0CC6489B0A07BB47A37F47CFEF4FE69DE825C060")
+                .unwrap(),
             "bitcoincash:qvch8mmxy0rtfrlarg7ucrxxfzds5pamg73h7370aa87d80gyhqxq5nlegake",
         );
     }
@@ -333,7 +334,7 @@ mod tests {
         assert!(
             CashAddrCodec::encode(data, network.clone()).unwrap() == cashaddr.to_ascii_lowercase()
         );
-        let decoded = CashAddrCodec::decode(cashaddr.to_string(), network).unwrap();
+        let decoded = CashAddrCodec::decode(cashaddr, network).unwrap();
         assert!(decoded.as_ref().to_vec() == *data);
     }
 }

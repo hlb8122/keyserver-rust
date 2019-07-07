@@ -15,7 +15,7 @@ pub fn get_key(
     data: web::Data<State>,
 ) -> Result<HttpResponse, ServerError> {
     // Convert address
-    let addr = Address::decode(addr_str.to_string())?;
+    let addr = Address::decode(&addr_str)?;
 
     // Grab metadata from DB
     let metadata = data.0.get(&addr)?.ok_or(ServerError::NotFound)?;
@@ -34,7 +34,7 @@ pub fn put_key(
     data: web::Data<State>,
 ) -> Result<HttpResponse, ServerError> {
     // Convert address
-    let addr = Address::decode(addr_str.to_string())?;
+    let addr = Address::decode(&addr_str)?;
 
     // Decode metadata
     let metadata = AddressMetadata::decode(body)?;
