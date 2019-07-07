@@ -270,6 +270,65 @@ mod tests {
         );
     }
 
+    #[test]
+    fn mainnet_28byte() {
+        // 28-byte public key hash on mainnet
+        verify(
+            Network::Mainnet,
+            &hex::decode("3A84F9CF51AAE98A3BB3A78BF16A6183790B18719126325BFC0C075B").unwrap(),
+            "bitcoincash:qgagf7w02x4wnz3mkwnchut2vxphjzccwxgjvvjmlsxqwkcw59jxxuz",
+        );
+    }
+
+    #[test]
+    fn mainnet_32byte() {
+        // 32-byte public key hash on mainnet
+        verify(
+            Network::Mainnet,
+            &hex::decode("3173EF6623C6B48FFD1A3DCC0CC6489B0A07BB47A37F47CFEF4FE69DE825C060").unwrap(),
+            "bitcoincash:qvch8mmxy0rtfrlarg7ucrxxfzds5pamg73h7370aa87d80gyhqxq5nlegake",
+        );
+    }
+
+    #[test]
+    fn mainnet_40byte() {
+        // 40-byte public key hash on mainnet
+        verify(
+            Network::Mainnet,
+            &hex::decode("C07138323E00FA4FC122D3B85B9628EA810B3F381706385E289B0B25631197D194B5C238BEB136FB").unwrap(),
+            "bitcoincash:qnq8zwpj8cq05n7pytfmskuk9r4gzzel8qtsvwz79zdskftrzxtar994cgutavfklv39gr3uvz",
+        );
+    }
+
+    #[test]
+    fn mainnet_48byte() {
+        // 48-byte public key hash on mainnet
+        verify(
+            Network::Mainnet,
+            &hex::decode("E361CA9A7F99107C17A622E047E3745D3E19CF804ED63C5C40C6BA763696B98241223D8CE62AD48D863F4CB18C930E4C").unwrap(),
+            "bitcoincash:qh3krj5607v3qlqh5c3wq3lrw3wnuxw0sp8dv0zugrrt5a3kj6ucysfz8kxwv2k53krr7n933jfsunqex2w82sl",
+        );
+    }
+
+    #[test]
+    fn mainnet_56byte() {
+        // 56-byte public key hash on mainnet
+        verify(
+            Network::Mainnet,
+            &hex::decode("D9FA7C4C6EF56DC4FF423BAAE6D495DBFF663D034A72D1DC7D52CBFE7D1E6858F9D523AC0A7A5C34077638E4DD1A701BD017842789982041").unwrap(),
+            "bitcoincash:qmvl5lzvdm6km38lgga64ek5jhdl7e3aqd9895wu04fvhlnare5937w4ywkq57juxsrhvw8ym5d8qx7sz7zz0zvcypqscw8jd03f",
+        );
+    }
+    #[test]
+    fn mainnet_64byte() {
+        // 64-byte public key hash on mainnet
+        verify(
+            Network::Mainnet,
+            &hex::decode("D0F346310D5513D9E01E299978624BA883E6BDA8F4C60883C10F28C2967E67EC77ECC7EEEAEAFC6DA89FAD72D11AC961E164678B868AEEEC5F2C1DA08884175B").unwrap(),
+            "bitcoincash:qlg0x333p4238k0qrc5ej7rzfw5g8e4a4r6vvzyrcy8j3s5k0en7calvclhw46hudk5flttj6ydvjc0pv3nchp52amk97tqa5zygg96mtky5sv5w",
+        );
+    }
+
     fn verify(network: Network, data: &Vec<u8>, cashaddr: &str) {
         assert!(
             CashAddrCodec::encode(data, network.clone()).unwrap() == cashaddr.to_ascii_lowercase()

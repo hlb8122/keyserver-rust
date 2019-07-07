@@ -18,7 +18,9 @@ rocksdb = "*"
 serde = "*"
 serde_json = "*"
 futures = "*"
-hex = "*"
 
 [build-dependencies]
 prost-build = "*"
+
+[dev-dependencies]
+hex = "*"
