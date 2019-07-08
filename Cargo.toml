@@ -5,17 +5,23 @@ authors = ["harry <hlbarber93@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-tokio = "*"
-prost = "*"
-rocksdb = "*"
-bytes = "*"
-secp256k1 = "*"
+actix-files = "*"
+actix-web = "*"
+actix-service = "*"
 bitcoin_hashes = "*"
+bytes = "*"
+env_logger = "*"
+prost = "*"
+reqwest = "*"
+secp256k1 = "*"
+rocksdb = "*"
 serde = "*"
 serde_json = "*"
-reqwest = "*"
-tower-web = "*"
-hex = "*"
+futures = "*"
+rust-base58 = "*"
 
 [build-dependencies]
 prost-build = "*"
+
+[dev-dependencies]
+hex = "*"

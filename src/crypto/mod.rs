@@ -1,10 +1,8 @@
-pub mod bitcoin_addr;
+pub mod address;
 pub mod ecdsa;
+pub mod errors;
 
-pub enum CryptoError {
-    Deserialization,
-    Verification,
-}
+use errors::CryptoError;
 
 pub trait PublicKey
 where
@@ -26,20 +24,4 @@ pub trait SigScheme {
     type Signature: Signature;
 
     fn verify(msg: &[u8], key: &Self::PublicKey, sig: &Self::Signature) -> Result<(), CryptoError>;
-}
-
-pub trait Address
-where
-    Self: Sized,
-    Self: PartialEq
-{
-    fn serialize(&self) -> Vec<u8>;
-    fn deserialize(raw: &[u8]) -> Result<Self, CryptoError>;
-}
-
-pub trait AddressScheme {
-    type PublicKey: PublicKey;
-    type Address: Address;
-
-    fn pubkey_to_addr(pk: &Self::PublicKey) -> Self::Address;
 }
