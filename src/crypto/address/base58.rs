@@ -27,7 +27,7 @@ impl AddressCodec for Base58Codec {
         // Convert from base58
         let v = s.from_base58().map_err(|_| CryptoError::Decoding)?;
         if v.len() < 6 {
-            return Err(CryptoError::Decoding)
+            return Err(CryptoError::Decoding);
         }
 
         // Verify checksum
@@ -35,7 +35,7 @@ impl AddressCodec for Base58Codec {
         let v1 = &v[v.len() - 4..v.len()];
         let cs = Sha256d::hash(v0);
         if v1[0] != cs[0] || v1[1] != cs[1] || v1[2] != cs[2] || v1[3] != cs[3] {
-            return Err(CryptoError::Decoding)
+            return Err(CryptoError::Decoding);
         }
 
         // Check network byte
@@ -44,12 +44,12 @@ impl AddressCodec for Base58Codec {
             Network::Testnet => 0x6f,
         };
         if v0[0] != net_byte {
-            return Err(CryptoError::Decoding)
+            return Err(CryptoError::Decoding);
         };
 
         // Extract hash160 address and return
         if v0.len() != 21 {
-            return Err(CryptoError::Decoding)
+            return Err(CryptoError::Decoding);
         }
 
         let mut hash160addr = vec![0; 20];

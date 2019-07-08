@@ -41,8 +41,7 @@ impl Address {
 
     pub fn decode(input: &str) -> Result<Self, CryptoError> {
         cashaddr::CashAddrCodec::decode(input, Network::Mainnet)
-        .or_else(|_| base58::Base58Codec::decode(input, Network::Mainnet))
-        
+            .or_else(|_| base58::Base58Codec::decode(input, Network::Mainnet))
     }
 }
 
