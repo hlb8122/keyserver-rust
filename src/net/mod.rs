@@ -1,5 +1,6 @@
 pub mod errors;
-pub mod payment;
+pub mod payments;
+pub mod token;
 
 use actix_web::{web, HttpResponse};
 use bytes::Bytes;

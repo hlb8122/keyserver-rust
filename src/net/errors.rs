@@ -12,6 +12,7 @@ pub enum ServerError {
     Crypto(CryptoError),
     NotFound,
     MetadataDecode,
+    Payment(PaymentError),
 }
 
 impl fmt::Display for ServerError {
@@ -21,6 +22,7 @@ impl fmt::Display for ServerError {
             ServerError::Crypto(err) => return err.fmt(f),
             ServerError::NotFound => "not found",
             ServerError::MetadataDecode => "metadata decoding error",
+            ServerError::Payment(err) => return err.fmt(f),
         };
         write!(f, "{}", printable)
     }
@@ -58,6 +60,45 @@ impl error::ResponseError for ServerError {
                 }
                 CryptoError::Verification => HttpResponse::BadRequest().body("validation failed"),
             },
+            ServerError::Payment(err) => match err {
+                PaymentError::Accept => HttpResponse::NotAcceptable().body("not acceptable"),
+                PaymentError::Content => {
+                    HttpResponse::UnsupportedMediaType().body("invalid content-type")
+                }
+                PaymentError::NoMerchant => HttpResponse::BadRequest().body("no merchant data"),
+                PaymentError::Payload => {
+                    HttpResponse::BadRequest().body("failed to receive payload")
+                }
+                PaymentError::Decode => HttpResponse::BadRequest().body("failed to decode body"),
+            },
         }
+    }
+}
+
+#[derive(Debug)]
+pub enum PaymentError {
+    Content,
+    Accept,
+    Decode,
+    Payload,
+    NoMerchant,
+}
+
+impl From<PaymentError> for ServerError {
+    fn from(err: PaymentError) -> Self {
+        ServerError::Payment(err)
+    }
+}
+
+impl fmt::Display for PaymentError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match self {
+            PaymentError::Content => "invalid content-type",
+            PaymentError::Accept => "not acceptable",
+            PaymentError::Decode => "failed to decode body",
+            PaymentError::Payload => "failed to receive payload",
+            PaymentError::NoMerchant => "no merchant data",
+        };
+        write!(f, "{}", printable)
     }
 }

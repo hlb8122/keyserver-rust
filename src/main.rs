@@ -3,11 +3,13 @@ pub mod crypto;
 pub mod db;
 pub mod jsonrpc_client;
 pub mod net;
-pub mod token;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
 
-use crate::{db::KeyDB, net::*};
+use crate::{
+    db::KeyDB,
+    net::{payments::payment_handler, *},
+};
 
 pub mod models {
     include!(concat!(env!("OUT_DIR"), "/models.rs"));
@@ -39,6 +41,7 @@ fn main() {
                         .route(web::put().to(put_key)),
                 ),
             )
+            .service(web::resource("/payment").route(web::put().to(payment_handler)))
             .service(actix_files::Files::new("/", "./static/").index_file("index.html"))
     })
     .bind(BIND_ADDR)
