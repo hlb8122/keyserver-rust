@@ -20,7 +20,7 @@ pub struct Response {
 
 impl Response {
     // Extract the result from a response
-    pub fn result<T>(&self) -> Result<T, ClientError>
+    pub fn into_result<T>(self) -> Result<T, ClientError>
     where
         for<'de> T: serde::Deserialize<'de>,
     {
@@ -28,7 +28,7 @@ impl Response {
             return Err(ClientError::Rpc(e.clone()));
         }
         match self.result {
-            Some(ref res) => from_value(res.clone()).map_err(ClientError::Json),
+            Some(res) => from_value(res).map_err(ClientError::Json),
             None => Err(ClientError::NoErrorOrResult),
         }
     }
