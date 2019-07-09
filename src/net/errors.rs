@@ -51,7 +51,7 @@ impl error::ResponseError for ServerError {
         match self {
             ServerError::DB(_) => HttpResponse::InternalServerError().body("database failure"),
             ServerError::NotFound => HttpResponse::NotFound().body("missing key address"),
-            ServerError::MetadataDecode => HttpResponse::NotFound().body("malformed metadata"),
+            ServerError::MetadataDecode => HttpResponse::NotFound().body("invalid metadata"),
             ServerError::Crypto(err) => match err {
                 CryptoError::Deserialization => HttpResponse::BadRequest().body("invalid address"),
                 CryptoError::Decoding => HttpResponse::BadRequest().body("address decoding failed"),
@@ -65,11 +65,14 @@ impl error::ResponseError for ServerError {
                 PaymentError::Content => {
                     HttpResponse::UnsupportedMediaType().body("invalid content-type")
                 }
-                PaymentError::NoMerchant => HttpResponse::BadRequest().body("no merchant data"),
+                PaymentError::NoMerchantDat => HttpResponse::BadRequest().body("no merchant data"),
                 PaymentError::Payload => {
                     HttpResponse::BadRequest().body("failed to receive payload")
                 }
                 PaymentError::Decode => HttpResponse::BadRequest().body("failed to decode body"),
+                PaymentError::InvalidMerchantDat => {
+                    HttpResponse::BadRequest().body("invalid merchant data")
+                }
             },
         }
     }
@@ -81,7 +84,8 @@ pub enum PaymentError {
     Accept,
     Decode,
     Payload,
-    NoMerchant,
+    NoMerchantDat,
+    InvalidMerchantDat,
 }
 
 impl From<PaymentError> for ServerError {
@@ -97,7 +101,8 @@ impl fmt::Display for PaymentError {
             PaymentError::Accept => "not acceptable",
             PaymentError::Decode => "failed to decode body",
             PaymentError::Payload => "failed to receive payload",
-            PaymentError::NoMerchant => "no merchant data",
+            PaymentError::NoMerchantDat => "no merchant data",
+            PaymentError::InvalidMerchantDat => "invalid merchant data",
         };
         write!(f, "{}", printable)
     }

@@ -19,7 +19,11 @@ serde = "*"
 serde_json = "*"
 futures = "*"
 rust-base58 = "*"
-hex = "*"
+url = "*"
+base64 = "*"
 
 [build-dependencies]
 prost-build = "*"
+
+[dev-dependencies]
+hex = "*"

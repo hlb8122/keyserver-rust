@@ -1,7 +1,10 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    str,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use actix_web::{
-    http::header::{HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE, PRAGMA},
+    http::header::{HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE, LOCATION, PRAGMA},
     web, HttpMessage, HttpRequest, HttpResponse,
 };
 use futures::{
@@ -9,6 +12,7 @@ use futures::{
     stream::Stream,
 };
 use prost::Message;
+use url::{ParseError, Url};
 
 use crate::{
     bitcoin::Network,
@@ -63,14 +67,23 @@ pub fn payment_handler(
         // Get merchant data
         let merchant_data = match ack.payment.merchant_data {
             Some(some) => some,
-            None => return err(PaymentError::NoMerchant.into()),
+            None => return Err(PaymentError::NoMerchantDat.into()),
         };
 
-        let token = generate_token(&merchant_data, SECRET);
+        // Generate token
+        let token = base64::encode(&generate_token(&merchant_data, SECRET));
+
+        // Generate paymentredirect
+        let mut redirect_url = Url::parse(
+            str::from_utf8(&merchant_data).map_err(|_| PaymentError::InvalidMerchantDat)?,
+        )
+        .map_err(|_| PaymentError::InvalidMerchantDat)?;
+        redirect_url.set_query(Some(&format!("code={}", token)));
 
         // Generate response
-        ok(HttpResponse::Found()
-            .header(AUTHORIZATION, format!("POP {}", hex::encode(token)))
+        Ok(HttpResponse::Found()
+            .header(LOCATION, redirect_url.into_string())
+            .header(AUTHORIZATION, format!("POP {}", token))
             .header(PRAGMA, "no-cache")
             .body(raw_ack))
     });
