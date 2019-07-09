@@ -1,8 +1,10 @@
-pub mod address;
+mod address;
 pub mod ecdsa;
 pub mod errors;
 
 use errors::CryptoError;
+
+pub use address::*;
 
 pub trait PublicKey
 where

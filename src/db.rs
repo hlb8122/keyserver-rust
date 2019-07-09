@@ -1,4 +1,4 @@
-use crate::crypto::address::Address;
+use crate::crypto::Address;
 use crate::models::AddressMetadata;
 use prost::Message;
 use rocksdb::{Error, DB};

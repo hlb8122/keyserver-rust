@@ -1,7 +1,7 @@
 pub mod authentication;
+pub mod bitcoin;
 pub mod crypto;
 pub mod db;
-pub mod jsonrpc_client;
 pub mod net;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};

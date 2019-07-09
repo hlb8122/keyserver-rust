@@ -6,7 +6,7 @@ use actix_web::{web, HttpResponse};
 use bytes::Bytes;
 use prost::Message;
 
-use crate::{crypto::address::*, db::KeyDB, models::AddressMetadata};
+use crate::{crypto::Address, db::KeyDB, models::AddressMetadata};
 use errors::ServerError;
 
 pub struct State(pub KeyDB);

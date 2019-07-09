@@ -3,7 +3,7 @@ use rust_base58::base58::{FromBase58, ToBase58};
 
 use super::*;
 
-use crate::crypto::errors::CryptoError;
+use crate::{bitcoin::Network, crypto::errors::CryptoError};
 
 pub struct Base58Codec;
 

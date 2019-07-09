@@ -11,7 +11,7 @@ use futures::{
 use prost::Message;
 
 use crate::{
-    crypto::address::Network,
+    bitcoin::Network,
     models::{Payment, PaymentAck, PaymentDetails},
 };
 
@@ -76,15 +76,6 @@ pub fn payment_handler(
     });
 
     Box::new(response)
-}
-
-impl Into<String> for Network {
-    fn into(self) -> String {
-        match self {
-            Network::Mainnet => "main".to_string(),
-            Network::Testnet => "test".to_string(),
-        }
-    }
 }
 
 // let response = payment_ack.and_then(|ack| {
