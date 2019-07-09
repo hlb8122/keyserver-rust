@@ -72,7 +72,9 @@ impl error::ResponseError for ServerError {
                 PaymentError::Decode => HttpResponse::BadRequest().body("failed to decode body"),
                 PaymentError::InvalidMerchantDat => {
                     HttpResponse::BadRequest().body("invalid merchant data")
-                }
+                },
+                PaymentError::InvalidAuth => HttpResponse::Unauthorized().body("invalid authorization"),
+                PaymentError::NoToken => HttpResponse::Unauthorized().body("no token")
             },
         }
     }
@@ -86,6 +88,8 @@ pub enum PaymentError {
     Payload,
     NoMerchantDat,
     InvalidMerchantDat,
+    InvalidAuth,
+    NoToken,
 }
 
 impl From<PaymentError> for ServerError {
@@ -103,6 +107,8 @@ impl fmt::Display for PaymentError {
             PaymentError::Payload => "failed to receive payload",
             PaymentError::NoMerchantDat => "no merchant data",
             PaymentError::InvalidMerchantDat => "invalid merchant data",
+            PaymentError::NoToken => "no token",
+            PaymentError::InvalidAuth => "invalid authorization"
         };
         write!(f, "{}", printable)
     }

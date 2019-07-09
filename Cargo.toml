@@ -21,6 +21,7 @@ futures = "*"
 rust-base58 = "*"
 url = "*"
 base64 = "*"
+serde_derive = "*"
 
 [build-dependencies]
 prost-build = "*"
