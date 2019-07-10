@@ -2,7 +2,7 @@
 
 use super::*;
 
-use crate::crypto::errors::CryptoError;
+use crate::{bitcoin::Network, crypto::errors::CryptoError};
 
 pub struct CashAddrCodec;
 

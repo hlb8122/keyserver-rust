@@ -1,11 +1,15 @@
 pub mod errors;
-pub mod payment;
+pub mod payments;
+pub mod token;
 
 use actix_web::{web, HttpResponse};
-use bytes::Bytes;
+use futures::{
+    future::{err, ok, Future},
+    stream::Stream,
+};
 use prost::Message;
 
-use crate::{crypto::address::*, db::KeyDB, models::AddressMetadata};
+use crate::{crypto::Address, db::KeyDB, models::AddressMetadata};
 use errors::ServerError;
 
 pub struct State(pub KeyDB);
@@ -30,18 +34,30 @@ pub fn get_key(
 
 pub fn put_key(
     addr_str: web::Path<String>,
-    body: Bytes,
+    payload: web::Payload,
     data: web::Data<State>,
-) -> Result<HttpResponse, ServerError> {
-    // Convert address
-    let addr = Address::decode(&addr_str)?;
-
+) -> Box<Future<Item = HttpResponse, Error = ServerError>> {
     // Decode metadata
-    let metadata = AddressMetadata::decode(body)?;
+    let body_raw = payload.map_err(|_| ServerError::MetadataDecode).fold(
+        web::BytesMut::new(),
+        move |mut body, chunk| {
+            body.extend_from_slice(&chunk);
+            Ok::<_, ServerError>(body)
+        },
+    );
+    let metadata = body_raw.and_then(|metadata_raw| {
+        AddressMetadata::decode(metadata_raw).map_err(|_| ServerError::MetadataDecode)
+    });
 
-    // Put to database
-    data.0.put(&addr, &metadata)?;
+    let response = metadata.and_then(move |metadata| {
+        // Convert address
+        let addr = Address::decode(&addr_str)?;
 
-    // Respond
-    Ok(HttpResponse::Ok().finish())
+        // Put to database
+        data.0.put(&addr, &metadata)?;
+
+        // Respond
+        Ok(HttpResponse::Ok().finish())
+    });
+    Box::new(response)
 }

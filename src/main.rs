@@ -1,13 +1,15 @@
 pub mod authentication;
+pub mod bitcoin;
 pub mod crypto;
 pub mod db;
-pub mod jsonrpc_client;
 pub mod net;
-pub mod token;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
 
-use crate::{db::KeyDB, net::*};
+use crate::{
+    db::KeyDB,
+    net::{payments::*, *},
+};
 
 pub mod models {
     include!(concat!(env!("OUT_DIR"), "/models.rs"));
@@ -29,16 +31,18 @@ fn main() {
     HttpServer::new(move || {
         let key_db_inner = key_db.clone();
         App::new()
-            .data(State(key_db_inner))
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
             .service(
                 web::scope("/keys").service(
                     web::resource("/{addr}")
+                        .data(State(key_db_inner))
+                        .wrap(CheckPayment) // Apply payment check to put key
                         .route(web::get().to(get_key))
-                        .route(web::put().to(put_key)),
+                        .route(web::put().to_async(put_key)),
                 ),
             )
+            .service(web::resource("/payment").route(web::put().to_async(payment_handler)))
             .service(actix_files::Files::new("/", "./static/").index_file("index.html"))
     })
     .bind(BIND_ADDR)

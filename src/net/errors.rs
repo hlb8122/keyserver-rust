@@ -12,6 +12,7 @@ pub enum ServerError {
     Crypto(CryptoError),
     NotFound,
     MetadataDecode,
+    Payment(PaymentError),
 }
 
 impl fmt::Display for ServerError {
@@ -21,6 +22,7 @@ impl fmt::Display for ServerError {
             ServerError::Crypto(err) => return err.fmt(f),
             ServerError::NotFound => "not found",
             ServerError::MetadataDecode => "metadata decoding error",
+            ServerError::Payment(err) => return err.fmt(f),
         };
         write!(f, "{}", printable)
     }
@@ -49,7 +51,7 @@ impl error::ResponseError for ServerError {
         match self {
             ServerError::DB(_) => HttpResponse::InternalServerError().body("database failure"),
             ServerError::NotFound => HttpResponse::NotFound().body("missing key address"),
-            ServerError::MetadataDecode => HttpResponse::NotFound().body("malformed metadata"),
+            ServerError::MetadataDecode => HttpResponse::NotFound().body("invalid metadata"),
             ServerError::Crypto(err) => match err {
                 CryptoError::Deserialization => HttpResponse::BadRequest().body("invalid address"),
                 CryptoError::Decoding => HttpResponse::BadRequest().body("address decoding failed"),
@@ -58,6 +60,56 @@ impl error::ResponseError for ServerError {
                 }
                 CryptoError::Verification => HttpResponse::BadRequest().body("validation failed"),
             },
+            ServerError::Payment(err) => match err {
+                PaymentError::Accept => HttpResponse::NotAcceptable().body("not acceptable"),
+                PaymentError::Content => {
+                    HttpResponse::UnsupportedMediaType().body("invalid content-type")
+                }
+                PaymentError::NoMerchantDat => HttpResponse::BadRequest().body("no merchant data"),
+                PaymentError::Payload => {
+                    HttpResponse::BadRequest().body("failed to receive payload")
+                }
+                PaymentError::Decode => HttpResponse::BadRequest().body("failed to decode body"),
+                PaymentError::InvalidMerchantDat => {
+                    HttpResponse::BadRequest().body("invalid merchant data")
+                },
+                PaymentError::InvalidAuth => HttpResponse::Unauthorized().body("invalid authorization"),
+                PaymentError::NoToken => HttpResponse::Unauthorized().body("no token")
+            },
         }
+    }
+}
+
+#[derive(Debug)]
+pub enum PaymentError {
+    Content,
+    Accept,
+    Decode,
+    Payload,
+    NoMerchantDat,
+    InvalidMerchantDat,
+    InvalidAuth,
+    NoToken,
+}
+
+impl From<PaymentError> for ServerError {
+    fn from(err: PaymentError) -> Self {
+        ServerError::Payment(err)
+    }
+}
+
+impl fmt::Display for PaymentError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match self {
+            PaymentError::Content => "invalid content-type",
+            PaymentError::Accept => "not acceptable",
+            PaymentError::Decode => "failed to decode body",
+            PaymentError::Payload => "failed to receive payload",
+            PaymentError::NoMerchantDat => "no merchant data",
+            PaymentError::InvalidMerchantDat => "invalid merchant data",
+            PaymentError::NoToken => "no token",
+            PaymentError::InvalidAuth => "invalid authorization"
+        };
+        write!(f, "{}", printable)
     }
 }

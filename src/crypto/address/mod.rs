@@ -3,13 +3,13 @@ pub mod cashaddr;
 
 use bitcoin_hashes::{ripemd160, Hash};
 
-use super::{errors::CryptoError, PublicKey};
+use crate::{
+    bitcoin::Network,
+    crypto::{errors::CryptoError, PublicKey},
+};
 
-#[derive(Clone)]
-pub enum Network {
-    Mainnet = 0,
-    Testnet = 1,
-}
+pub use base58::Base58Codec;
+pub use cashaddr::CashAddrCodec;
 
 #[derive(PartialEq, Clone)]
 pub enum AddressScheme {
@@ -32,17 +32,14 @@ impl<'a> AsRef<[u8]> for Address {
 impl Address {
     pub fn encode(&self) -> Result<String, CryptoError> {
         match self.scheme {
-            AddressScheme::CashAddr => {
-                cashaddr::CashAddrCodec::encode(&self.payload, Network::Mainnet)
-            }
-            AddressScheme::Base58 => base58::Base58Codec::encode(&self.payload, Network::Mainnet),
+            AddressScheme::CashAddr => CashAddrCodec::encode(&self.payload, Network::Mainnet),
+            AddressScheme::Base58 => Base58Codec::encode(&self.payload, Network::Mainnet),
         }
     }
 
     pub fn decode(input: &str) -> Result<Self, CryptoError> {
-        cashaddr::CashAddrCodec::decode(input, Network::Mainnet)
-        .or_else(|_| base58::Base58Codec::decode(input, Network::Mainnet))
-        
+        CashAddrCodec::decode(input, Network::Mainnet)
+            .or_else(|_| Base58Codec::decode(input, Network::Mainnet))
     }
 }
 
