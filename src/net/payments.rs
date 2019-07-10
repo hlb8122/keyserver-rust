@@ -5,7 +5,7 @@ use std::{
 
 use actix_service::{Service, Transform};
 use actix_web::{
-    dev::{ServiceRequest, ServiceResponse, Body},
+    dev::{Body, ServiceRequest, ServiceResponse},
     http::{
         header::{HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE, LOCATION, PRAGMA},
         Method,
@@ -180,13 +180,15 @@ where
         // Decode token
         let token = match base64::decode(&token_str) {
             Ok(some) => some,
-            Err(_) => return Either::B(err(ServerError::Payment(PaymentError::InvalidAuth).into()))
+            Err(_) => {
+                return Either::B(err(ServerError::Payment(PaymentError::InvalidAuth).into()))
+            }
         };
 
         // Validate
         let path_raw = req.path().as_bytes();
         if !validate_token(path_raw, &token, SECRET) {
-            return Either::B(err(ServerError::Payment(PaymentError::InvalidAuth).into()))
+            return Either::B(err(ServerError::Payment(PaymentError::InvalidAuth).into()));
         }
 
         // Valid interval
@@ -204,7 +206,9 @@ where
             payment_url: Some(PAYMENT_URL.to_string()),
         };
         let mut serialized_payment_details = Vec::with_capacity(payment_details.encoded_len());
-        payment_details.encode(&mut serialized_payment_details).unwrap();
+        payment_details
+            .encode(&mut serialized_payment_details)
+            .unwrap();
 
         // Generate payment invoice
         let pki_type = Some("none".to_string());
@@ -217,9 +221,10 @@ where
         };
         let mut payment_invoice_raw = Vec::with_capacity(payment_invoice.encoded_len());
         payment_invoice.encode(&mut payment_invoice_raw).unwrap();
-        
+
         // Respond
-        Either::B(ok(req.into_response(HttpResponse::PaymentRequired().body(payment_invoice_raw))))
+        Either::B(ok(req.into_response(
+            HttpResponse::PaymentRequired().body(payment_invoice_raw),
+        )))
     }
 }
-

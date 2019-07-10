@@ -51,7 +51,7 @@ impl error::ResponseError for ServerError {
         match self {
             ServerError::DB(_) => HttpResponse::InternalServerError().body("database failure"),
             ServerError::NotFound => HttpResponse::NotFound().body("missing key address"),
-            ServerError::MetadataDecode => HttpResponse::NotFound().body("invalid metadata"),
+            ServerError::MetadataDecode => HttpResponse::BadRequest().body("invalid metadata"),
             ServerError::Crypto(err) => match err {
                 CryptoError::Deserialization => HttpResponse::BadRequest().body("invalid address"),
                 CryptoError::Decoding => HttpResponse::BadRequest().body("address decoding failed"),
@@ -72,9 +72,11 @@ impl error::ResponseError for ServerError {
                 PaymentError::Decode => HttpResponse::BadRequest().body("failed to decode body"),
                 PaymentError::InvalidMerchantDat => {
                     HttpResponse::BadRequest().body("invalid merchant data")
-                },
-                PaymentError::InvalidAuth => HttpResponse::Unauthorized().body("invalid authorization"),
-                PaymentError::NoToken => HttpResponse::Unauthorized().body("no token")
+                }
+                PaymentError::InvalidAuth => {
+                    HttpResponse::Unauthorized().body("invalid authorization")
+                }
+                PaymentError::NoToken => HttpResponse::Unauthorized().body("no token"),
             },
         }
     }
@@ -108,7 +110,7 @@ impl fmt::Display for PaymentError {
             PaymentError::NoMerchantDat => "no merchant data",
             PaymentError::InvalidMerchantDat => "invalid merchant data",
             PaymentError::NoToken => "no token",
-            PaymentError::InvalidAuth => "invalid authorization"
+            PaymentError::InvalidAuth => "invalid authorization",
         };
         write!(f, "{}", printable)
     }

@@ -1,6 +1,6 @@
 use super::*;
 
-pub struct Secp256k1PublicKey(secp256k1::PublicKey);
+pub struct Secp256k1PublicKey(pub secp256k1::PublicKey);
 
 impl PublicKey for Secp256k1PublicKey {
     fn serialize(&self) -> Vec<u8> {
@@ -14,7 +14,7 @@ impl PublicKey for Secp256k1PublicKey {
     }
 }
 
-pub struct Secp256k1Sig(secp256k1::Signature);
+pub struct Secp256k1Sig(pub secp256k1::Signature);
 
 impl Signature for Secp256k1Sig {
     fn deserialize(raw: &[u8]) -> Result<Self, CryptoError> {
