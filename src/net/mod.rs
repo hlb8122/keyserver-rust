@@ -3,10 +3,7 @@ pub mod payments;
 pub mod token;
 
 use actix_web::{web, HttpResponse};
-use futures::{
-    future::Future,
-    stream::Stream,
-};
+use futures::{future::Future, stream::Stream};
 use prost::Message;
 
 use crate::{crypto::Address, db::KeyDB, models::AddressMetadata};

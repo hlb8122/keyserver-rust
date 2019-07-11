@@ -74,9 +74,9 @@ impl error::ResponseError for ServerError {
                     HttpResponse::BadRequest().body("invalid merchant data")
                 }
                 PaymentError::InvalidAuth => {
-                    HttpResponse::Unauthorized().body("invalid authorization")
+                    HttpResponse::PaymentRequired().body("invalid authorization")
                 }
-                PaymentError::NoToken => HttpResponse::Unauthorized().body("no token"),
+                PaymentError::NoToken => HttpResponse::PaymentRequired().body("no token"),
             },
         }
     }
