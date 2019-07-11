@@ -4,7 +4,7 @@ pub mod token;
 
 use actix_web::{web, HttpResponse};
 use futures::{
-    future::{err, ok, Future},
+    future::Future,
     stream::Stream,
 };
 use prost::Message;

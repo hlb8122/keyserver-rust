@@ -20,9 +20,10 @@ pub fn validate_token(msg: &[u8], secret: &[u8], expected: &[u8]) -> bool {
     generate_token(msg, secret) == expected
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
-
+    
     #[test]
     fn test_validate() {
         let secret = generate_secret(16);

@@ -10,9 +10,8 @@ use actix_web::{
         header::{HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE, LOCATION, PRAGMA},
         Method,
     },
-    web, Error, HttpMessage, HttpRequest, HttpResponse,
+    web, Error, HttpRequest, HttpResponse,
 };
-use bytes::Bytes;
 use futures::{
     future::{err, ok, Either, Future, FutureResult},
     stream::Stream,
