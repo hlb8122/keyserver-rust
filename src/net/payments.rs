@@ -29,7 +29,7 @@ use crate::{
 use super::{errors::*, token::*};
 
 const SECRET: &[u8] = b"deadbeef";
-const PAYMENT_URL: &str = "/payment";
+const PAYMENT_URL: &str = "/payments";
 const VALID_DURATION: u64 = 30;
 const NETWORK: Network = Network::Mainnet;
 
@@ -234,9 +234,10 @@ mod tests {
     use crate::{
         db::KeyDB,
         net::{tests::generate_address_metadata, *},
+        models::PaymentRequest
     };
-    use actix_service::Service;
     use actix_web::{http::StatusCode, test, web, App};
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn test_put_no_token() {
@@ -255,8 +256,21 @@ mod tests {
             .uri(&format!("/keys/{}", address_base58))
             .set_payload(metadata_raw)
             .to_request();
-
         let mut resp = test::call_service(&mut app, req);
+
+        // Check status
         assert_eq!(resp.status(), StatusCode::PAYMENT_REQUIRED);
+
+        // Check valid invoice is valid
+        let body_vec = resp.take_body().collect().wait().unwrap();
+        let invoice_raw = body_vec.get(0).unwrap();
+        let invoice = PaymentRequest::decode(invoice_raw).unwrap();
+
+        let payment_details = PaymentDetails::decode(invoice.serialized_payment_details).unwrap();
+        assert_eq!(payment_details.network.unwrap(), "main".to_string());
+        assert!(payment_details.expires.unwrap() > payment_details.time);
+        assert!(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() >= payment_details.time);
+        assert_eq!(payment_details.payment_url.unwrap(), "/payments".to_string());
+        
     }
 }
