@@ -77,7 +77,7 @@ mod tests {
     use secp256k1::{rand, Secp256k1};
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    fn generate_address_metadata() -> (String, Vec<u8>) {
+    pub fn generate_address_metadata() -> (String, Vec<u8>) {
         // Generate public key
         let secp = Secp256k1::new();
         let public_key = Secp256k1PublicKey(secp.generate_keypair(&mut rand::thread_rng()).1);

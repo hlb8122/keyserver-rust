@@ -227,3 +227,38 @@ where
         )))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        bitcoin::Network,
+        crypto::{ecdsa::Secp256k1PublicKey, *},
+        models::*,
+        net::{*, tests::generate_address_metadata},
+        db::KeyDB,
+    };
+    use actix_service::Service;
+    use actix_web::{http::StatusCode, test, web, App};
+    use secp256k1::{rand, Secp256k1};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn test_put_payment() {
+        // Init routes
+        let key_db = KeyDB::try_new("./test_db/put_ok").unwrap();
+        let mut app = test::init_service(
+            App::new()
+                .data(State(key_db))
+                .wrap(CheckPayment) // Apply payment check to put key
+                .route("/keys/{addr}", web::put().to(put_key)),
+        );
+
+        let (address_base58, metadata_raw) = generate_address_metadata();
+
+        let req = test::TestRequest::put()
+            .uri(&format!("/keys/{}", address_base58))
+            .set_payload(metadata_raw)
+            .to_request();
+    }
+}
