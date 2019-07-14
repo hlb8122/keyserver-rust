@@ -5,18 +5,12 @@ use rocksdb::{Error, DB};
 
 use std::sync::Arc;
 
-const DB_PATH: &str = "./db";
-
 #[derive(Clone)]
 pub struct KeyDB(Arc<DB>);
 
 impl KeyDB {
     pub fn try_new(path: &str) -> Result<Self, Error> {
         DB::open_default(path).map(Arc::new).map(KeyDB)
-    }
-
-    pub fn try_default() -> Result<Self, Error> {
-        Self::try_new(DB_PATH)
     }
 
     pub fn close(self) {

@@ -1,0 +1,26 @@
+name: keyserver-rust
+version: "0.1.0"
+author: Harry Barber <hlbarber93@gmail.com>
+about: Cash:web keyserverd is a BCH-based key and metadata server
+args:
+    - config:
+        short: c
+        long: config
+        help: Configuration file
+        takes_value: true
+    - bind:
+        short: b
+        long: bind
+        help: Bind Address for keyserverd
+        takes_value: true
+    - peers:
+        short: p
+        long: peers
+        multiple: true
+        help: URL to a keyserver peer
+        takes_value: true
+    - dbpath:
+        short: d
+        long: dbpath
+        help: Database path
+        takes_value: true

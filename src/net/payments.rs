@@ -8,9 +8,9 @@ use actix_web::{
     dev::{Body, ServiceRequest, ServiceResponse},
     http::{
         header::{HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE, LOCATION, PRAGMA},
-        Method
+        Method,
     },
-    web, Error, HttpRequest, HttpResponse, ResponseError
+    web, Error, HttpRequest, HttpResponse, ResponseError,
 };
 use futures::{
     future::{err, ok, Either, Future, FutureResult},
@@ -21,11 +21,10 @@ use prost::Message;
 use serde_derive::Deserialize;
 use url::Url;
 
-use crate::{bitcoin::Network, models::*};
+use crate::{bitcoin::Network, models::*, SETTINGS};
 
 use super::{errors::*, token::*};
 
-const SECRET: &[u8] = b"deadbeef";
 const PAYMENT_URL: &str = "/payments";
 const VALID_DURATION: u64 = 30;
 const NETWORK: Network = Network::Mainnet;
@@ -81,7 +80,7 @@ pub fn payment_handler(
 
         // Generate token
         let url_safe_config = base64::Config::new(base64::CharacterSet::UrlSafe, false);
-        let token = base64::encode_config(&generate_token(&merchant_data, SECRET), url_safe_config);
+        let token = base64::encode_config(&generate_token(&merchant_data, SETTINGS.secret.as_bytes()), url_safe_config);
 
         // Generate paymentredirect
         let mut redirect_url = Url::parse(
@@ -224,7 +223,9 @@ where
         let token = match base64::decode_config(&token_str, url_safe_config) {
             Ok(some) => some,
             Err(_) => {
-                return Either::B(ok(req.into_response(ServerError::Payment(PaymentError::InvalidAuth).error_response())))
+                return Either::B(ok(req.into_response(
+                    ServerError::Payment(PaymentError::InvalidAuth).error_response(),
+                )))
             }
         };
 
@@ -233,11 +234,15 @@ where
         let url = match (uri.scheme_str(), uri.authority_part()) {
             (Some(scheme), Some(authority)) => format!("{}://{}{}", scheme, authority, uri.path()),
             (_, _) => {
-                return Either::B(ok(req.into_response(ServerError::Payment(PaymentError::URIMalformed).error_response())))
+                return Either::B(ok(req.into_response(
+                    ServerError::Payment(PaymentError::URIMalformed).error_response(),
+                )))
             }
         };
-        if !validate_token(url.as_bytes(), &token, SECRET) {
-            Either::B(ok(req.into_response(ServerError::Payment(PaymentError::InvalidAuth).error_response())))
+        if !validate_token(url.as_bytes(), &token, SETTINGS.secret.as_bytes()) {
+            Either::B(ok(req.into_response(
+                ServerError::Payment(PaymentError::InvalidAuth).error_response(),
+            )))
         } else {
             Either::A(self.service.call(req))
         }

@@ -1,31 +1,43 @@
+#[macro_use]
+extern crate clap;
+#[macro_use]
+extern crate lazy_static;
+
 pub mod authentication;
 pub mod bitcoin;
 pub mod crypto;
 pub mod db;
 pub mod net;
+pub mod settings;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
+use lazy_static::lazy_static;
 
 use crate::{
     db::KeyDB,
     net::{payments::*, *},
+    settings::Settings,
 };
 
 pub mod models {
     include!(concat!(env!("OUT_DIR"), "/models.rs"));
 }
 
-const BIND_ADDR: &str = "127.0.0.1:8080";
+lazy_static! {
+    pub static ref SETTINGS: Settings = Settings::new().expect("couldn't load config");
+}
 
 fn main() {
-    println!("starting server @ {}", BIND_ADDR);
+    // Init config
+
+    println!("starting server @ {}", SETTINGS.bind);
 
     // Init logging
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
     // Open DB
-    let key_db = KeyDB::try_default().unwrap();
+    let key_db = KeyDB::try_new(&SETTINGS.dbpath).unwrap();
 
     // Init REST server
     HttpServer::new(move || {
@@ -45,8 +57,8 @@ fn main() {
             .service(web::resource("/payments").route(web::post().to_async(payment_handler)))
             .service(actix_files::Files::new("/", "./static/").index_file("index.html"))
     })
-    .bind(BIND_ADDR)
-    .unwrap_or_else(|_| panic!("failed to bind to {}", BIND_ADDR))
+    .bind(&SETTINGS.bind)
+    .unwrap_or_else(|_| panic!("failed to bind to {}", SETTINGS.bind))
     .run()
     .unwrap();
 }
