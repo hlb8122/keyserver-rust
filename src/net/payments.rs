@@ -227,7 +227,6 @@ where
                 return Either::B(ok(req.into_response(ServerError::Payment(PaymentError::InvalidAuth).error_response())))
             }
         };
-        println!("{}", token_str);
 
         // Validate
         let uri = req.uri();

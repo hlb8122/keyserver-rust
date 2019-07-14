@@ -16,9 +16,7 @@ pub fn get_key(
     data: web::Data<State>,
 ) -> Result<HttpResponse, ServerError> {
     // Convert address
-    println!("{}", addr_str);
     let addr = Address::decode(&addr_str)?;
-    println!("got here");
 
     // Grab metadata from DB
     let metadata = data.0.get(&addr)?.ok_or(ServerError::NotFound)?;
