@@ -42,7 +42,7 @@ fn main() {
                         .route(web::put().to_async(put_key)),
                 ),
             )
-            .service(web::resource("/payments").route(web::put().to_async(payment_handler)))
+            .service(web::resource("/payments").route(web::post().to_async(payment_handler)))
             .service(actix_files::Files::new("/", "./static/").index_file("index.html"))
     })
     .bind(BIND_ADDR)

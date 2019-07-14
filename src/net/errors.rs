@@ -77,6 +77,7 @@ impl error::ResponseError for ServerError {
                     HttpResponse::PaymentRequired().body("invalid authorization")
                 }
                 PaymentError::NoToken => HttpResponse::PaymentRequired().body("no token"),
+                PaymentError::URIMalformed => HttpResponse::BadRequest().body("malformed URI"),
             },
         }
     }
@@ -92,6 +93,7 @@ pub enum PaymentError {
     InvalidMerchantDat,
     InvalidAuth,
     NoToken,
+    URIMalformed,
 }
 
 impl From<PaymentError> for ServerError {
@@ -111,6 +113,7 @@ impl fmt::Display for PaymentError {
             PaymentError::InvalidMerchantDat => "invalid merchant data",
             PaymentError::NoToken => "no token",
             PaymentError::InvalidAuth => "invalid authorization",
+            PaymentError::URIMalformed => "malformed URI",
         };
         write!(f, "{}", printable)
     }
