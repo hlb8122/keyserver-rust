@@ -80,7 +80,10 @@ pub fn payment_handler(
 
         // Generate token
         let url_safe_config = base64::Config::new(base64::CharacterSet::UrlSafe, false);
-        let token = base64::encode_config(&generate_token(&merchant_data, SETTINGS.secret.as_bytes()), url_safe_config);
+        let token = base64::encode_config(
+            &generate_token(&merchant_data, SETTINGS.secret.as_bytes()),
+            url_safe_config,
+        );
 
         // Generate paymentredirect
         let mut redirect_url = Url::parse(

@@ -28,14 +28,11 @@ impl Settings {
         default_db.push(".keyserver-rust/db");
         s.set_default("dbpath", default_db.to_str()).unwrap();
 
-
         // Load config from file
         let mut default_config = home_dir.clone();
         default_config.push(".keyserver-rust/config");
         let default_config_str = default_config.to_str().unwrap();
-        let config_path = matches
-            .value_of("config")
-            .unwrap_or(default_config_str);
+        let config_path = matches.value_of("config").unwrap_or(default_config_str);
         s.merge(File::with_name(config_path).required(false))?;
 
         // Set bind address from cmd line
