@@ -1,5 +1,6 @@
 pub mod errors;
 pub mod payments;
+pub mod peer;
 pub mod token;
 
 use actix_web::{web, HttpResponse};
