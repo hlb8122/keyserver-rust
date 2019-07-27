@@ -12,11 +12,13 @@ use std::sync::Arc;
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use bitcoin_hashes::{hash160, Hash};
+use env_logger::Env;
 use futures::{
     future::{ok, Either},
     Future, Stream,
 };
 use lazy_static::lazy_static;
+use log::{info, warn, error};
 use prost::Message;
 
 use crate::{
@@ -34,13 +36,11 @@ lazy_static! {
 }
 
 fn main() {
-    println!("starting server @ {}", SETTINGS.bind);
-
-    let sys = actix_rt::System::new("example");  // <- create Actix system
+    let sys = actix_rt::System::new("keyserver");
 
     // Init logging
-    std::env::set_var("RUST_LOG", "actix_web=info");
-    env_logger::init();
+    env_logger::from_env(Env::default().default_filter_or("actix_web=info,keyserver=info")).init();
+    info!("starting server @ {}", SETTINGS.bind);
 
     // Open DB
     let key_db = KeyDB::try_new(&SETTINGS.db_path).unwrap();
@@ -49,8 +49,7 @@ fn main() {
     let (tx_stream, connection) = tx_stream::get_tx_stream(&format!("tcp://{}:{}", SETTINGS.node_ip, SETTINGS.node_zmq_port));
     let key_stream = tx_stream::extract_details(tx_stream);
     actix_rt::Arbiter::current().send(connection.map_err(|e| {
-        // TODO: Logging
-        println!("{:?}", e);
+        error!("{:?}", e);
         ()
     }));
 
@@ -62,8 +61,8 @@ fn main() {
     let peer_polling = key_stream.for_each(move |(peer_addr, pkhash, meta_digest)| {
         let bitcoin_addr = match pkhash.encode() {
             Ok(ok) => ok,
-            Err(_e) => {
-                // TODO: Log encoding error here
+            Err(e) => {
+                warn!("{}", e);
                 return Either::A(ok(()));
             }
         };
@@ -75,8 +74,8 @@ fn main() {
         Either::B(metadata_fut.then(move |metadata| {
             let metadata = match metadata {
                 Ok(ok) => ok,
-                Err(_e) => {
-                    // TODO: Log client error
+                Err(e) => {
+                    warn!("{:?}", e);
                     return ok(());
                 }
             };
@@ -85,19 +84,18 @@ fn main() {
             metadata.encode(&mut metadata_raw).unwrap();
             let actual_digest = &hash160::Hash::hash(&metadata_raw)[..];
             if actual_digest != &meta_digest[..] {
-                // TODO: Log fake metadata
+                warn!("found fraudulent metadata");
                 return ok(());
             }
 
-            if let Err(_e) = key_db_inner.clone().put(&pkhash, &metadata) {
-                // TODO: Log error
+            if let Err(e) = key_db_inner.clone().put(&pkhash, &metadata) {
+                error!("failed to put peer metadata {}", e);
             };
             ok(())
         }))
     });
     actix_rt::Arbiter::current().send(peer_polling.map_err(|e| {
-        // TODO: Logging
-        println!("{:?}", e);
+        error!("{:?}", e);
         ()
     }));
 

@@ -8,6 +8,7 @@ use reqwest::{r#async::Client, Error as ReqError, Url, UrlError};
 
 use crate::models::AddressMetadata;
 
+#[derive(Debug)]
 pub enum PeerError {
     UrlError(UrlError),
     ResponseError(ReqError),
