@@ -30,6 +30,10 @@ impl<'a> AsRef<[u8]> for Address {
 }
 
 impl Address {
+    pub fn new(payload: Vec<u8>, scheme: AddressScheme) -> Self {
+        Address { payload, scheme }
+    }
+
     pub fn encode(&self) -> Result<String, CryptoError> {
         match self.scheme {
             AddressScheme::CashAddr => CashAddrCodec::encode(&self.payload, Network::Mainnet),

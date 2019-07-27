@@ -34,10 +34,10 @@ impl PeerClient {
     pub fn get_metadata(
         &self,
         peer_addr: &str,
-        addr: &str,
+        bitcoin_addr: &str,
     ) -> impl Future<Item = AddressMetadata, Error = PeerError> + Send {
         // Construct URL
-        let url_str = format!("http://{}/keys/{}", peer_addr, addr);
+        let url_str = format!("http://{}/keys/{}", peer_addr, bitcoin_addr);
         let url = match Url::parse(&url_str) {
             Ok(ok) => ok,
             Err(e) => return Either::B(err(e.into())),
