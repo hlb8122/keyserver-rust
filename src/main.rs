@@ -26,8 +26,6 @@ lazy_static! {
 }
 
 fn main() {
-    // Init config
-
     println!("starting server @ {}", SETTINGS.bind);
 
     // Init logging

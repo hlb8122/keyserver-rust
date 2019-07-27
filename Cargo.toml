@@ -9,6 +9,8 @@ actix-files = "*"
 actix-web = "*"
 actix-service = "*"
 base64 = "*"
+bitcoin = "*"
+bitcoin-zmq = { git = "https://github.com/hlb8122/rust-bitcoin-zmq.git" }
 bitcoin_hashes = "*"
 bytes = "*"
 clap = { version = "*", features = ["yaml"] }

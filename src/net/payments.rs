@@ -12,6 +12,7 @@ use actix_web::{
     },
     web, Error, HttpRequest, HttpResponse, ResponseError,
 };
+use bytes::BytesMut;
 use futures::{
     future::{err, ok, Either, Future, FutureResult},
     stream::Stream,
@@ -52,7 +53,7 @@ pub fn payment_handler(
 
     // Read and parse payment proto
     let body_raw = payload.map_err(|_| PaymentError::Payload.into()).fold(
-        web::BytesMut::new(),
+        BytesMut::new(),
         move |mut body, chunk| {
             body.extend_from_slice(&chunk);
             Ok::<_, ServerError>(body)

@@ -1,4 +1,4 @@
-use actix_web::web;
+use bytes::BytesMut;
 use futures::{
     future::{err, Either},
     Future, Stream,
@@ -52,7 +52,7 @@ impl PeerClient {
                 .and_then(|resp| {
                     // Receive body
                     resp.into_body().map_err(PeerError::ResponseError).fold(
-                        web::BytesMut::new(),
+                        BytesMut::new(),
                         move |mut body, chunk| {
                             body.extend_from_slice(&chunk);
                             Ok::<_, PeerError>(body)
