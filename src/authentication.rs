@@ -4,6 +4,7 @@ use crate::models::AddressMetadata;
 use bitcoin_hashes::{sha256, Hash};
 use prost::Message;
 
+#[derive(Debug)]
 pub enum ValidationError {
     KeyType,
     Preimage,

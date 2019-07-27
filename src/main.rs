@@ -18,10 +18,12 @@ use futures::{
     Future, Stream,
 };
 use lazy_static::lazy_static;
-use log::{info, warn, error};
+use log::{error, info, warn};
 use prost::Message;
 
 use crate::{
+    authentication::validate,
+    crypto::ecdsa::Secp256k1,
     db::KeyDB,
     net::{payments::*, *},
     settings::Settings,
@@ -46,7 +48,10 @@ fn main() {
     let key_db = KeyDB::try_new(&SETTINGS.db_path).unwrap();
 
     // Init ZMQ
-    let (tx_stream, connection) = tx_stream::get_tx_stream(&format!("tcp://{}:{}", SETTINGS.node_ip, SETTINGS.node_zmq_port));
+    let (tx_stream, connection) = tx_stream::get_tx_stream(&format!(
+        "tcp://{}:{}",
+        SETTINGS.node_ip, SETTINGS.node_zmq_port
+    ));
     let key_stream = tx_stream::extract_details(tx_stream);
     actix_rt::Arbiter::current().send(connection.map_err(|e| {
         error!("{:?}", e);
@@ -58,8 +63,8 @@ fn main() {
 
     // Setup peer polling logic
     let key_db_inner = key_db.clone();
-    let peer_polling = key_stream.for_each(move |(peer_addr, pkhash, meta_digest)| {
-        let bitcoin_addr = match pkhash.encode() {
+    let peer_polling = key_stream.for_each(move |(peer_addr, bitcoin_addr, meta_digest)| {
+        let bitcoin_addr_str = match bitcoin_addr.encode() {
             Ok(ok) => ok,
             Err(e) => {
                 warn!("{}", e);
@@ -68,7 +73,7 @@ fn main() {
         };
 
         // Get metadata from peer
-        let metadata_fut = client.clone().get_metadata(&peer_addr, &bitcoin_addr);
+        let metadata_fut = client.clone().get_metadata(&peer_addr, &bitcoin_addr_str);
 
         let key_db_inner = key_db_inner.clone();
         Either::B(metadata_fut.then(move |metadata| {
@@ -79,6 +84,7 @@ fn main() {
                     return ok(());
                 }
             };
+
             // Check digest matches
             let mut metadata_raw = Vec::with_capacity(metadata.encoded_len());
             metadata.encode(&mut metadata_raw).unwrap();
@@ -88,7 +94,12 @@ fn main() {
                 return ok(());
             }
 
-            if let Err(e) = key_db_inner.clone().put(&pkhash, &metadata) {
+            if let Err(e) = validate::<Secp256k1>(&bitcoin_addr, &metadata) {
+                warn!("peer supplied invalid metadata {:?}", e);
+                return ok(());
+            }
+
+            if let Err(e) = key_db_inner.clone().put(&bitcoin_addr, &metadata) {
                 error!("failed to put peer metadata {}", e);
             };
             ok(())
