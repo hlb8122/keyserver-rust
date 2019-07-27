@@ -3,7 +3,7 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4},
 };
 
-use bitcoin::{util::psbt::serialize::Deserialize, Transaction, consensus::encode};
+use bitcoin::{consensus::encode, util::psbt::serialize::Deserialize, Transaction};
 use bitcoin_zmq::{errors::SubscriptionError, Topic, ZMQSubscriber};
 use futures::{Future, Stream};
 

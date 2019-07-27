@@ -4,11 +4,12 @@ use actix_web::{error, HttpResponse};
 use prost::DecodeError;
 use rocksdb::Error as RocksError;
 
-use crate::crypto::errors::CryptoError;
+use crate::crypto::errors::{CryptoError, ValidationError};
 
 #[derive(Debug)]
 pub enum ServerError {
     DB(RocksError),
+    Validation(ValidationError),
     Crypto(CryptoError),
     NotFound,
     MetadataDecode,
@@ -23,6 +24,7 @@ impl fmt::Display for ServerError {
             ServerError::NotFound => "not found",
             ServerError::MetadataDecode => "metadata decoding error",
             ServerError::Payment(err) => return err.fmt(f),
+            ServerError::Validation(err) => return err.fmt(f)
         };
         write!(f, "{}", printable)
     }
@@ -46,20 +48,32 @@ impl From<RocksError> for ServerError {
     }
 }
 
+impl error::ResponseError for CryptoError {
+    fn error_response(&self) -> HttpResponse {
+        match self {
+            CryptoError::Deserialization => HttpResponse::BadRequest().body("invalid address"),
+            CryptoError::Decoding => HttpResponse::BadRequest().body("address decoding failed"),
+            CryptoError::Encoding => {
+                HttpResponse::InternalServerError().body("address encoding failed")
+            }
+            CryptoError::Verification => HttpResponse::BadRequest().body("validation failed"),
+        }
+    }
+}
+
 impl error::ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
         match self {
+            ServerError::Validation(err) => match err {
+                ValidationError::Crypto(err_inner) => err_inner.error_response(),
+                ValidationError::EmptyPayload => HttpResponse::BadRequest().body("empty payload"),
+                ValidationError::KeyType => HttpResponse::BadRequest().body("bad key type"),
+                ValidationError::Preimage => HttpResponse::BadRequest().body("digest mismatch"),
+            },
             ServerError::DB(_) => HttpResponse::InternalServerError().body("database failure"),
             ServerError::NotFound => HttpResponse::NotFound().body("missing key address"),
             ServerError::MetadataDecode => HttpResponse::BadRequest().body("invalid metadata"),
-            ServerError::Crypto(err) => match err {
-                CryptoError::Deserialization => HttpResponse::BadRequest().body("invalid address"),
-                CryptoError::Decoding => HttpResponse::BadRequest().body("address decoding failed"),
-                CryptoError::Encoding => {
-                    HttpResponse::InternalServerError().body("address encoding failed")
-                }
-                CryptoError::Verification => HttpResponse::BadRequest().body("validation failed"),
-            },
+            ServerError::Crypto(err) => err.error_response(),
             ServerError::Payment(err) => match err {
                 PaymentError::Accept => HttpResponse::NotAcceptable().body("not acceptable"),
                 PaymentError::Content => {

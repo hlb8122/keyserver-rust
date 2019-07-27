@@ -1,22 +1,8 @@
-use crate::crypto::{errors::CryptoError, *};
+use crate::crypto::{errors::ValidationError, *};
 use crate::models::AddressMetadata;
 
 use bitcoin_hashes::{sha256, Hash};
 use prost::Message;
-
-#[derive(Debug)]
-pub enum ValidationError {
-    KeyType,
-    Preimage,
-    EmptyPayload,
-    Crypto(CryptoError),
-}
-
-impl Into<ValidationError> for CryptoError {
-    fn into(self) -> ValidationError {
-        ValidationError::Crypto(self)
-    }
-}
 
 pub fn validate<S: SigScheme>(
     addr: &Address,

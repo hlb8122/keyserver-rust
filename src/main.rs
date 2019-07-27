@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate clap;
 
-pub mod authentication;
 pub mod bitcoin;
 pub mod crypto;
 pub mod db;
@@ -22,8 +21,7 @@ use log::{error, info, warn};
 use prost::Message;
 
 use crate::{
-    authentication::validate,
-    crypto::ecdsa::Secp256k1,
+    crypto::{authentication::validate, ecdsa::Secp256k1},
     db::KeyDB,
     net::{payments::*, *},
     settings::Settings,
