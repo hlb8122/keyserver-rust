@@ -33,10 +33,6 @@ lazy_static! {
     pub static ref SETTINGS: Settings = Settings::new().expect("couldn't load config");
 }
 
-const node_addr: &str = "35.222.194.216";
-const node_rpc_port: u16 = 8332;
-const node_zmq_port: u16 = 28332;
-
 fn main() {
     println!("starting server @ {}", SETTINGS.bind);
 
@@ -47,12 +43,12 @@ fn main() {
     env_logger::init();
 
     // Open DB
-    let key_db = KeyDB::try_new(&SETTINGS.dbpath).unwrap();
+    let key_db = KeyDB::try_new(&SETTINGS.db_path).unwrap();
 
     // Init ZMQ
-    let (tx_stream, broker) = tx_stream::get_tx_stream(&format!("tcp://{}:{}", node_addr, node_zmq_port));
+    let (tx_stream, connection) = tx_stream::get_tx_stream(&format!("tcp://{}:{}", SETTINGS.node_ip, SETTINGS.node_zmq_port));
     let key_stream = tx_stream::extract_details(tx_stream);
-    actix_rt::Arbiter::current().send(broker.map_err(|e| {
+    actix_rt::Arbiter::current().send(connection.map_err(|e| {
         // TODO: Logging
         println!("{:?}", e);
         ()

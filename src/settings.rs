@@ -5,9 +5,11 @@ use serde_derive::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub bind: String,
-    pub peers: Vec<String>,
+    pub node_ip: String,
+    pub node_rpc_port: u16,
+    pub node_zmq_port: u16,
     pub secret: String,
-    pub dbpath: String,
+    pub db_path: String,
 }
 
 impl Settings {
@@ -22,11 +24,13 @@ impl Settings {
             None => return Err(ConfigError::Message("no home directory".to_string())),
         };
         s.set_default("bind", "0.0.0.0:8080").unwrap();
-        s.set_default("peers", Vec::<String>::new()).unwrap();
+        s.set_default("node_ip", "127.0.0.1").unwrap();
+        s.set_default("node_rpc_port", "8332").unwrap();
+        s.set_default("node_zmq_port", "8332").unwrap();
         s.set_default("secret", "b").unwrap();
         let mut default_db = home_dir.clone();
         default_db.push(".keyserver-rust/db");
-        s.set_default("dbpath", default_db.to_str()).unwrap();
+        s.set_default("db_path", default_db.to_str()).unwrap();
 
         // Load config from file
         let mut default_config = home_dir.clone();
@@ -40,9 +44,19 @@ impl Settings {
             s.set("bind", bind)?;
         }
 
+        // Set node IP from cmd line
+        if let Some(node_ip) = matches.value_of("node-ip") {
+            s.set("node-ip", node_ip)?;
+        }
+
         // Set peers from cmd line
-        if let Ok(peers) = values_t!(matches, "peers", String) {
-            s.set("peers", peers)?;
+        if let Ok(node_rpc_port) = value_t!(matches, "rpc-port", i64) {
+            s.set("node_rpc_port", node_rpc_port)?;
+        }
+
+        // Set peers from cmd line
+        if let Ok(node_zmq_port) = value_t!(matches, "zmq-port", i64) {
+            s.set("node_zmq_port", node_zmq_port)?;
         }
 
         // Set secret from cmd line
@@ -51,8 +65,8 @@ impl Settings {
         }
 
         // Set db from cmd line
-        if let Some(dbpath) = matches.value_of("dbpath") {
-            s.set("dbpath", dbpath)?;
+        if let Some(db_path) = matches.value_of("db-path") {
+            s.set("db_path", db_path)?;
         }
         s.try_into()
     }
