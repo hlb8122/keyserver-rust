@@ -3,7 +3,7 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4},
 };
 
-use bitcoin::{util::psbt::serialize::Deserialize, Transaction};
+use bitcoin::{util::psbt::serialize::Deserialize, Transaction, consensus::encode};
 use bitcoin_zmq::{errors::SubscriptionError, Topic, ZMQSubscriber};
 use futures::{Future, Stream};
 
@@ -11,9 +11,10 @@ use crate::crypto::{Address, AddressScheme};
 
 const KEYSERVER_PREFIX: &[u8; 9] = b"keyserver";
 
+#[derive(Debug)]
 pub enum StreamError {
     Subscription(SubscriptionError),
-    Deserialization,
+    Deserialization(encode::Error),
 }
 
 impl From<SubscriptionError> for StreamError {
@@ -32,8 +33,7 @@ pub fn get_tx_stream(
     let stream = stream
         .map_err(|_| unreachable!()) // TODO: Double check that this is safe
         .and_then(move |raw_tx| {
-            let tx = Transaction::deserialize(&raw_tx).map_err(|_| StreamError::Deserialization)?;
-            Ok(tx)
+            Transaction::deserialize(&raw_tx).map_err(StreamError::Deserialization)
         });
 
     (stream, broker.map_err(StreamError::Subscription))

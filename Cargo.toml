@@ -8,6 +8,7 @@ edition = "2018"
 actix-files = "*"
 actix-web = "*"
 actix-service = "*"
+actix-rt = "*"
 base64 = "*"
 bitcoin = "*"
 bitcoin-zmq = { git = "https://github.com/hlb8122/rust-bitcoin-zmq.git" }

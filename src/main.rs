@@ -33,12 +33,14 @@ lazy_static! {
     pub static ref SETTINGS: Settings = Settings::new().expect("couldn't load config");
 }
 
-const node_addr: &str = "127.0.0.1";
+const node_addr: &str = "35.222.194.216";
 const node_rpc_port: u16 = 8332;
-const node_zmq_port: u16 = 18332;
+const node_zmq_port: u16 = 28332;
 
 fn main() {
     println!("starting server @ {}", SETTINGS.bind);
+
+    let sys = actix_rt::System::new("example");  // <- create Actix system
 
     // Init logging
     std::env::set_var("RUST_LOG", "actix_web=info");
@@ -48,8 +50,13 @@ fn main() {
     let key_db = KeyDB::try_new(&SETTINGS.dbpath).unwrap();
 
     // Init ZMQ
-    let (tx_stream, broker) = tx_stream::get_tx_stream(&format!("{}:{}", node_addr, node_zmq_port));
+    let (tx_stream, broker) = tx_stream::get_tx_stream(&format!("tcp://{}:{}", node_addr, node_zmq_port));
     let key_stream = tx_stream::extract_details(tx_stream);
+    actix_rt::Arbiter::current().send(broker.map_err(|e| {
+        // TODO: Logging
+        println!("{:?}", e);
+        ()
+    }));
 
     // Peer client
     let client = Arc::new(peer::PeerClient::new());
@@ -92,6 +99,11 @@ fn main() {
             ok(())
         }))
     });
+    actix_rt::Arbiter::current().send(peer_polling.map_err(|e| {
+        // TODO: Logging
+        println!("{:?}", e);
+        ()
+    }));
 
     // Init REST server
     HttpServer::new(move || {
@@ -113,6 +125,7 @@ fn main() {
     })
     .bind(&SETTINGS.bind)
     .unwrap_or_else(|_| panic!("failed to bind to {}", SETTINGS.bind))
-    .run()
-    .unwrap();
+    .start();
+
+    sys.run().expect("failed to run");
 }
