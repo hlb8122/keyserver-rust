@@ -1,12 +1,20 @@
 pub mod errors;
 pub mod payments;
+pub mod peer;
 pub mod token;
+pub mod tx_stream;
 
 use actix_web::{web, HttpResponse};
+use bytes::BytesMut;
 use futures::{future::Future, stream::Stream};
 use prost::Message;
 
-use crate::{crypto::Address, db::KeyDB, models::AddressMetadata};
+use crate::{
+    crypto::{authentication::validate, ecdsa::Secp256k1, Address},
+    db::KeyDB,
+    models::AddressMetadata,
+};
+
 use errors::ServerError;
 
 pub struct State(pub KeyDB);
@@ -36,7 +44,7 @@ pub fn put_key(
 ) -> Box<Future<Item = HttpResponse, Error = ServerError>> {
     // Decode metadata
     let body_raw = payload.map_err(|_| ServerError::MetadataDecode).fold(
-        web::BytesMut::new(),
+        BytesMut::new(),
         move |mut body, chunk| {
             body.extend_from_slice(&chunk);
             Ok::<_, ServerError>(body)
@@ -49,6 +57,8 @@ pub fn put_key(
     let response = metadata.and_then(move |metadata| {
         // Convert address
         let addr = Address::decode(&addr_str)?;
+
+        validate::<Secp256k1>(&addr, &metadata).map_err(ServerError::Validation)?;
 
         // Put to database
         data.0.put(&addr, &metadata)?;

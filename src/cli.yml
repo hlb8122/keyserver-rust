@@ -11,16 +11,22 @@ args:
     - bind:
         short: b
         long: bind
-        help: Bind Address for keyserverd
+        help: Bind address for keyserverd
         takes_value: true
-    - peers:
-        short: p
-        long: peers
-        multiple: true
-        help: URL to a keyserver peer
+    - node-ip:
+        long: node-ip
+        help: Bitcoin RPC port
         takes_value: true
-    - dbpath:
+    - rpc-port:
+        long: rpc-port
+        help: Bitcoin RPC port
+        takes_value: true
+    - zmq-port:
+        long: zmq-port
+        help: Bitcoin ZMQ port
+        takes_value: true
+    - db-path:
         short: d
-        long: dbpath
+        long: db-path
         help: Database path
         takes_value: true

@@ -1,17 +1,19 @@
 #[macro_use]
 extern crate clap;
-#[macro_use]
-extern crate lazy_static;
 
-pub mod authentication;
 pub mod bitcoin;
 pub mod crypto;
 pub mod db;
 pub mod net;
 pub mod settings;
 
+use std::io;
+
 use actix_web::{middleware::Logger, web, App, HttpServer};
+use env_logger::Env;
+use futures::Future;
 use lazy_static::lazy_static;
+use log::{error, info};
 
 use crate::{
     db::KeyDB,
@@ -27,17 +29,29 @@ lazy_static! {
     pub static ref SETTINGS: Settings = Settings::new().expect("couldn't load config");
 }
 
-fn main() {
-    // Init config
-
-    println!("starting server @ {}", SETTINGS.bind);
+fn main() -> io::Result<()> {
+    let sys = actix_rt::System::new("keyserver");
 
     // Init logging
-    std::env::set_var("RUST_LOG", "actix_web=info");
-    env_logger::init();
+    env_logger::from_env(Env::default().default_filter_or("actix_web=info,keyserver=info")).init();
+    info!("starting server @ {}", SETTINGS.bind);
 
     // Open DB
-    let key_db = KeyDB::try_new(&SETTINGS.dbpath).unwrap();
+    let key_db = KeyDB::try_new(&SETTINGS.db_path).unwrap();
+
+    // Init ZMQ
+    let (tx_stream, connection) = tx_stream::get_tx_stream(&format!(
+        "tcp://{}:{}",
+        SETTINGS.node_ip, SETTINGS.node_zmq_port
+    ));
+    let key_stream = tx_stream::extract_details(tx_stream);
+    actix_rt::Arbiter::current().send(connection.map_err(|e| error!("{:?}", e)));
+
+    // Peer client
+    let client = peer::PeerClient::default();
+
+    // Setup peer polling logic
+    actix_rt::Arbiter::current().send(client.peer_polling(key_db.clone(), key_stream));
 
     // Init REST server
     HttpServer::new(move || {
@@ -57,8 +71,8 @@ fn main() {
             .service(web::resource("/payments").route(web::post().to_async(payment_handler)))
             .service(actix_files::Files::new("/", "./static/").index_file("index.html"))
     })
-    .bind(&SETTINGS.bind)
-    .unwrap_or_else(|_| panic!("failed to bind to {}", SETTINGS.bind))
-    .run()
-    .unwrap();
+    .bind(&SETTINGS.bind)?
+    .start();
+
+    sys.run()
 }

@@ -1,4 +1,5 @@
 mod address;
+pub mod authentication;
 pub mod ecdsa;
 pub mod errors;
 
