@@ -79,13 +79,16 @@ mod tests {
     };
     use actix_service::Service;
     use actix_web::{http::StatusCode, test, web, App};
+    use bitcoin_hashes::{sha256, Hash};
     use secp256k1::{rand, Secp256k1};
     use std::time::{SystemTime, UNIX_EPOCH};
+    use serde::Serialize;
 
     pub fn generate_address_metadata() -> (String, Vec<u8>) {
         // Generate public key
         let secp = Secp256k1::new();
-        let public_key = Secp256k1PublicKey(secp.generate_keypair(&mut rand::thread_rng()).1);
+        let (sk, pk) = secp.generate_keypair(&mut rand::thread_rng());
+        let public_key = Secp256k1PublicKey(pk);
         let pubkey_raw = public_key.serialize();
         let address_raw = public_key.to_raw_address();
 
@@ -111,13 +114,22 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs() as i64;
-        let payload = Some(Payload { timestamp, rows });
+        let payload = Payload { timestamp, rows };
+
+        // Construct signature
+        let mut raw_payload = Vec::with_capacity(payload.encoded_len());
+        payload.encode(&mut raw_payload).unwrap();
+        let payload_digest = &sha256::Hash::hash(&raw_payload)[..];
+        let signature = secp.sign(
+            &secp256k1::Message::from_slice(&payload_digest).unwrap(),
+            &sk,
+        );
 
         // Construct metadata
         let metadata = AddressMetadata {
             pub_key: pubkey_raw,
-            payload,
-            signature: vec![],
+            payload: Some(payload),
+            signature: signature.serialize_der(),
             r#type: 0,
         };
         let mut metadata_raw = Vec::with_capacity(metadata.encoded_len());
