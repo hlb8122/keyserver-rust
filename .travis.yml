@@ -1,6 +1,11 @@
+dist: bionic
 language: rust
 rust:
   - stable
+
+before_install:
+  - sudo apt update
+  - sudo apt install -y pkg-config libzmq3-dev
 
 cache: cargo
 script:
