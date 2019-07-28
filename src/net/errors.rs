@@ -24,7 +24,7 @@ impl fmt::Display for ServerError {
             ServerError::NotFound => "not found",
             ServerError::MetadataDecode => "metadata decoding error",
             ServerError::Payment(err) => return err.fmt(f),
-            ServerError::Validation(err) => return err.fmt(f)
+            ServerError::Validation(err) => return err.fmt(f),
         };
         write!(f, "{}", printable)
     }

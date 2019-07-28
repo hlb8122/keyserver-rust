@@ -14,6 +14,7 @@ use crate::{
     db::KeyDB,
     models::AddressMetadata,
 };
+
 use errors::ServerError;
 
 pub struct State(pub KeyDB);
