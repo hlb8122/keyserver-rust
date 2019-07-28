@@ -51,48 +51,38 @@ impl From<RocksError> for ServerError {
 impl error::ResponseError for CryptoError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            CryptoError::Deserialization => HttpResponse::BadRequest().body("invalid address"),
-            CryptoError::Decoding => HttpResponse::BadRequest().body("address decoding failed"),
-            CryptoError::Encoding => {
-                HttpResponse::InternalServerError().body("address encoding failed")
-            }
-            CryptoError::Verification => HttpResponse::BadRequest().body("validation failed"),
+            CryptoError::Deserialization => HttpResponse::BadRequest(),
+            CryptoError::Decoding => HttpResponse::BadRequest(),
+            CryptoError::Encoding => HttpResponse::InternalServerError(),
+            CryptoError::Verification => HttpResponse::BadRequest(),
         }
+        .body(self.to_string())
+    }
+}
+
+impl error::ResponseError for ValidationError {
+    fn error_response(&self) -> HttpResponse {
+        match self {
+            ValidationError::Crypto(err_inner) => return err_inner.error_response(),
+            ValidationError::EmptyPayload => HttpResponse::BadRequest(),
+            ValidationError::KeyType => HttpResponse::BadRequest(),
+            ValidationError::Preimage => HttpResponse::BadRequest(),
+        }
+        .body(self.to_string())
     }
 }
 
 impl error::ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            ServerError::Validation(err) => match err {
-                ValidationError::Crypto(err_inner) => err_inner.error_response(),
-                ValidationError::EmptyPayload => HttpResponse::BadRequest().body("empty payload"),
-                ValidationError::KeyType => HttpResponse::BadRequest().body("bad key type"),
-                ValidationError::Preimage => HttpResponse::BadRequest().body("digest mismatch"),
-            },
-            ServerError::DB(_) => HttpResponse::InternalServerError().body("database failure"),
-            ServerError::NotFound => HttpResponse::NotFound().body("missing key address"),
-            ServerError::MetadataDecode => HttpResponse::BadRequest().body("invalid metadata"),
-            ServerError::Crypto(err) => err.error_response(),
-            ServerError::Payment(err) => match err {
-                PaymentError::Accept => HttpResponse::NotAcceptable().body("not acceptable"),
-                PaymentError::Content => {
-                    HttpResponse::UnsupportedMediaType().body("invalid content-type")
-                }
-                PaymentError::NoMerchantDat => HttpResponse::BadRequest().body("no merchant data"),
-                PaymentError::Payload => {
-                    HttpResponse::BadRequest().body("failed to receive payload")
-                }
-                PaymentError::Decode => HttpResponse::BadRequest().body("failed to decode body"),
-                PaymentError::InvalidMerchantDat => {
-                    HttpResponse::BadRequest().body("invalid merchant data")
-                }
-                PaymentError::InvalidAuth => {
-                    HttpResponse::PaymentRequired().body("invalid authorization")
-                }
-                PaymentError::NoToken => HttpResponse::PaymentRequired().body("no token"),
-                PaymentError::URIMalformed => HttpResponse::BadRequest().body("malformed URI"),
-            },
+            ServerError::Validation(err) => return err.error_response(),
+            ServerError::DB(_) => HttpResponse::InternalServerError().body("internal db error"),
+            ServerError::NotFound => return HttpResponse::NotFound().body("missing key address"),
+            ServerError::MetadataDecode => {
+                return HttpResponse::BadRequest().body("invalid metadata")
+            }
+            ServerError::Crypto(err) => return err.error_response(),
+            ServerError::Payment(err) => return err.error_response(),
         }
     }
 }
@@ -130,5 +120,22 @@ impl fmt::Display for PaymentError {
             PaymentError::URIMalformed => "malformed URI",
         };
         write!(f, "{}", printable)
+    }
+}
+
+impl error::ResponseError for PaymentError {
+    fn error_response(&self) -> HttpResponse {
+        match self {
+            PaymentError::Accept => HttpResponse::NotAcceptable(),
+            PaymentError::Content => HttpResponse::UnsupportedMediaType(),
+            PaymentError::NoMerchantDat => HttpResponse::BadRequest(),
+            PaymentError::Payload => HttpResponse::BadRequest(),
+            PaymentError::Decode => HttpResponse::BadRequest(),
+            PaymentError::InvalidMerchantDat => HttpResponse::BadRequest(),
+            PaymentError::InvalidAuth => HttpResponse::PaymentRequired(),
+            PaymentError::NoToken => HttpResponse::PaymentRequired(),
+            PaymentError::URIMalformed => HttpResponse::BadRequest(),
+        }
+        .body(self.to_string())
     }
 }
