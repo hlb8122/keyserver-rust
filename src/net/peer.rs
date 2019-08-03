@@ -16,7 +16,7 @@ use crate::{
     models::AddressMetadata,
 };
 
-use super::tx_stream::StreamError;
+use crate::bitcoin::tx_stream::StreamError;
 
 #[derive(Debug)]
 pub enum PeerError {

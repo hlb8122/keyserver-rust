@@ -16,6 +16,7 @@ use lazy_static::lazy_static;
 use log::{error, info};
 
 use crate::{
+    bitcoin::tx_stream,
     db::KeyDB,
     net::{payments::*, *},
     settings::Settings,

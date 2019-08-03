@@ -1,8 +1,8 @@
 pub mod errors;
+pub mod jsonrpc_client;
 pub mod payments;
 pub mod peer;
 pub mod token;
-pub mod tx_stream;
 
 use actix_web::{web, HttpResponse};
 use bytes::BytesMut;
@@ -81,8 +81,8 @@ mod tests {
     use actix_web::{http::StatusCode, test, web, App};
     use bitcoin_hashes::{sha256, Hash};
     use secp256k1::{rand, Secp256k1};
-    use std::time::{SystemTime, UNIX_EPOCH};
     use serde::Serialize;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     pub fn generate_address_metadata() -> (String, Vec<u8>) {
         // Generate public key

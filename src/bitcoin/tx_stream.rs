@@ -9,7 +9,7 @@ use futures::{Future, Stream};
 
 use crate::crypto::{Address, AddressScheme};
 
-const KEYSERVER_PREFIX: &[u8; 9] = b"keyserver";
+use super::check_op_return;
 
 #[derive(Debug)]
 pub enum StreamError {
@@ -47,18 +47,9 @@ pub fn extract_details(
         // This unwrap is safe due to tx originating from deserialization
         let output = tx.output.get(0).unwrap();
 
+        // Check for op return script
         let script = output.script_pubkey.as_bytes();
-        if script[0] != 0x6a {
-            // Not op_return
-            return None;
-        }
-        // OP_RETURN || keyserver || peer addr || bitcoin pk hash || metadata digest
-        if script.len() != 1 + 9 + 6 + 20 + 20 {
-            // Not correct length
-            return None;
-        }
-        if &script[1..10] != KEYSERVER_PREFIX {
-            // Not keyserver op_return
+        if !check_op_return(script) {
             return None;
         }
 

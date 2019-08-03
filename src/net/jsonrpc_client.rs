@@ -54,7 +54,7 @@ impl JsonClient {
         }
     }
 
-    /// Sends a request to a async client
+    // Sends a request to a async client
     pub fn send_request(
         &self,
         request: &Request,
