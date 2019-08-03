@@ -9,6 +9,7 @@ use std::{
 };
 
 use bitcoin::Transaction;
+pub use client::BitcoinClient;
 
 const KEYSERVER_PREFIX: &[u8; 9] = b"keyserver";
 
@@ -27,9 +28,18 @@ impl Into<String> for Network {
     }
 }
 
+#[derive(Default, Clone)]
 pub struct WalletState(Arc<RwLock<HashSet<Vec<u8>>>>);
 
 impl WalletState {
+    pub fn add(&self, addr: Vec<u8>) {
+        self.0.write().unwrap().insert(addr);
+    }
+
+    pub fn remove(&self, addr: Vec<u8>) {
+        self.0.write().unwrap().remove(&addr);
+    }
+
     pub fn check_outputs(&self, tx: Transaction) -> bool {
         let first_output = tx.output.get(0).unwrap(); // This is safe
 

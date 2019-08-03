@@ -7,6 +7,8 @@ pub struct Settings {
     pub bind: String,
     pub node_ip: String,
     pub node_rpc_port: u16,
+    pub node_username: String,
+    pub node_password: String,
     pub node_zmq_port: u16,
     pub secret: String,
     pub db_path: String,
@@ -26,6 +28,8 @@ impl Settings {
         s.set_default("bind", "0.0.0.0:8080").unwrap();
         s.set_default("node_ip", "127.0.0.1").unwrap();
         s.set_default("node_rpc_port", "8332").unwrap();
+        s.set_default("node_username", "").unwrap();
+        s.set_default("node_password", "").unwrap();
         s.set_default("node_zmq_port", "8332").unwrap();
         s.set_default("secret", "b").unwrap();
         let mut default_db = home_dir.clone();
@@ -49,12 +53,22 @@ impl Settings {
             s.set("node-ip", node_ip)?;
         }
 
-        // Set peers from cmd line
+        // Set rpc port from cmd line
         if let Ok(node_rpc_port) = value_t!(matches, "rpc-port", i64) {
             s.set("node_rpc_port", node_rpc_port)?;
         }
 
-        // Set peers from cmd line
+        // Set rpc username from cmd line
+        if let Some(node_rpc_username) = matches.value_of("rpc-username") {
+            s.set("rpc-username", node_rpc_username)?;
+        }
+
+        // Set rpc password from cmd line
+        if let Some(node_rpc_password) = matches.value_of("rpc-password") {
+            s.set("rpc-password", node_rpc_password)?;
+        }
+
+        // Set zmq port from cmd line
         if let Ok(node_zmq_port) = value_t!(matches, "zmq-port", i64) {
             s.set("node_zmq_port", node_zmq_port)?;
         }

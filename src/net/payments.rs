@@ -12,6 +12,7 @@ use actix_web::{
     },
     web, Error, HttpRequest, HttpResponse, ResponseError,
 };
+use bitcoin::{util::psbt::serialize::Deserialize, Transaction};
 use bytes::BytesMut;
 use futures::{
     future::{err, ok, Either, Future, FutureResult},
@@ -22,7 +23,11 @@ use prost::Message;
 use serde_derive::Deserialize;
 use url::Url;
 
-use crate::{bitcoin::Network, models::*, SETTINGS};
+use crate::{
+    bitcoin::{BitcoinClient, Network, WalletState},
+    models::*,
+    SETTINGS,
+};
 
 use super::{errors::*, token::*};
 
@@ -39,6 +44,7 @@ pub struct TokenQuery {
 pub fn payment_handler(
     req: HttpRequest,
     payload: web::Payload,
+    data: web::Data<(WalletState, BitcoinClient)>,
 ) -> Box<Future<Item = HttpResponse, Error = ServerError>> {
     // Check headers
     let headers = req.headers();
@@ -52,21 +58,48 @@ pub fn payment_handler(
     }
 
     // Read and parse payment proto
-    let body_raw = payload.map_err(|_| PaymentError::Payload.into()).fold(
-        BytesMut::new(),
-        move |mut body, chunk| {
-            body.extend_from_slice(&chunk);
-            Ok::<_, ServerError>(body)
-        },
-    );
-    let payment = body_raw.and_then(|payment_raw| {
-        Payment::decode(payment_raw).map_err(|_| PaymentError::Decode.into())
-    });
+    let body_raw =
+        payload
+            .map_err(|_| PaymentError::Payload)
+            .fold(BytesMut::new(), move |mut body, chunk| {
+                body.extend_from_slice(&chunk);
+                Ok::<_, PaymentError>(body)
+            });
+    let payment = body_raw
+        .and_then(|payment_raw| Payment::decode(payment_raw).map_err(|_| PaymentError::Decode));
 
-    // TODO: Check outputs
+    let payment_ack = payment
+        .and_then(move |payment| {
+            // Parse tx
+            let tx_raw = match payment.transactions.get(0) {
+                Some(some) => some,
+                None => return Either::A(err(PaymentError::NoTx)),
+            }; // Assume first tx
+            let tx = match Transaction::deserialize(tx_raw) {
+                Ok(ok) => ok,
+                Err(e) => return Either::A(err(PaymentError::from(e))),
+            };
 
-    let memo = Some("Thanks for your custom!".to_string());
-    let payment_ack = payment.map(|payment| PaymentAck { payment, memo });
+            // Check outputs
+            let wallet_data = &data.0;
+            if !wallet_data.check_outputs(tx) {
+                return Either::A(err(PaymentError::InvalidOutputs));
+            }
+
+            // Send tx
+            let bitcoin_client = &data.1;
+            Either::B(
+                bitcoin_client
+                    .send_tx(format!("{:x?}", tx_raw))
+                    .and_then(|_txid| {
+                        // Create payment ack
+                        let memo = Some("Thanks for your custom!".to_string());
+                        Ok(PaymentAck { payment, memo })
+                    })
+                    .map_err(|_| PaymentError::InvalidTx),
+            )
+        })
+        .map_err(ServerError::Payment);
 
     let response = payment_ack.and_then(|ack| {
         // Encode payment ack
@@ -74,10 +107,10 @@ pub fn payment_handler(
         ack.encode(&mut raw_ack).unwrap();
 
         // Get merchant data
-        let merchant_data = match ack.payment.merchant_data {
-            Some(some) => some,
-            None => return Err(PaymentError::NoMerchantDat.into()),
-        };
+        let merchant_data = ack
+            .payment
+            .merchant_data
+            .ok_or(PaymentError::NoMerchantDat)?;
 
         // Generate token
         let url_safe_config = base64::Config::new(base64::CharacterSet::UrlSafe, false);
@@ -175,6 +208,8 @@ where
                     let current_time = SystemTime::now();
                     let expiry_time = current_time + Duration::from_secs(VALID_DURATION);
 
+                    // TODO: Generate output requests and add addr to wallet
+
                     // Generate payment details
                     let uri = req.uri();
                     let url = match (uri.scheme_str(), uri.authority_part()) {
@@ -270,7 +305,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/no_token").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(State(key_db))
+                .data(DBState(key_db))
                 .wrap(CheckPayment) // Apply payment check to put key
                 .route("/keys/{addr}", web::put().to(put_key)),
         );
@@ -319,7 +354,7 @@ mod tests {
                 .service(
                     web::scope("/keys").service(
                         web::resource("/{addr}")
-                            .data(State(key_db))
+                            .data(DBState(key_db))
                             .wrap(CheckPayment) // Apply payment check to put key
                             .route(web::put().to_async(put_key)),
                     ),

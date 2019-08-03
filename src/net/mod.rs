@@ -17,17 +17,17 @@ use crate::{
 
 use errors::ServerError;
 
-pub struct State(pub KeyDB);
+pub struct DBState(pub KeyDB);
 
 pub fn get_key(
     addr_str: web::Path<String>,
-    data: web::Data<State>,
+    db_data: web::Data<DBState>,
 ) -> Result<HttpResponse, ServerError> {
     // Convert address
     let addr = Address::decode(&addr_str)?;
 
     // Grab metadata from DB
-    let metadata = data.0.get(&addr)?.ok_or(ServerError::NotFound)?;
+    let metadata = db_data.0.get(&addr)?.ok_or(ServerError::NotFound)?;
 
     // Encode metadata as hex
     let mut raw_payload = Vec::with_capacity(metadata.encoded_len());
@@ -40,7 +40,7 @@ pub fn get_key(
 pub fn put_key(
     addr_str: web::Path<String>,
     payload: web::Payload,
-    data: web::Data<State>,
+    db_data: web::Data<DBState>,
 ) -> Box<Future<Item = HttpResponse, Error = ServerError>> {
     // Decode metadata
     let body_raw = payload.map_err(|_| ServerError::MetadataDecode).fold(
@@ -61,7 +61,7 @@ pub fn put_key(
         validate::<Secp256k1>(&addr, &metadata).map_err(ServerError::Validation)?;
 
         // Put to database
-        data.0.put(&addr, &metadata)?;
+        db_data.0.put(&addr, &metadata)?;
 
         // Respond
         Ok(HttpResponse::Ok().finish())
@@ -144,7 +144,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/put_ok").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(State(key_db))
+                .data(DBState(key_db))
                 .route("/keys/{addr}", web::put().to(put_key)),
         );
 
@@ -164,7 +164,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/put_malformed").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(State(key_db))
+                .data(DBState(key_db))
                 .route("/keys/{addr}", web::put().to(put_key)),
         );
 
@@ -184,7 +184,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/put_invalid_addr").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(State(key_db))
+                .data(DBState(key_db))
                 .route("/keys/{addr}", web::put().to(put_key)),
         );
 
@@ -204,7 +204,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/get_invalid_addr").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(State(key_db))
+                .data(DBState(key_db))
                 .route("/keys/{addr}", web::get().to(get_key)),
         );
 
@@ -221,7 +221,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/get_not_found").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(State(key_db))
+                .data(DBState(key_db))
                 .route("/keys/{addr}", web::get().to(get_key)),
         );
 
@@ -240,7 +240,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/put_get").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(State(key_db))
+                .data(DBState(key_db))
                 .route("/keys/{addr}", web::get().to(get_key))
                 .route("/keys/{addr}", web::put().to(put_key)),
         );

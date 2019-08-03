@@ -1,6 +1,7 @@
 use std::fmt;
 
 use actix_web::{error, HttpResponse};
+use bitcoin::consensus::encode::Error as TxDeserializeError;
 use prost::DecodeError;
 use rocksdb::Error as RocksError;
 
@@ -75,14 +76,12 @@ impl error::ResponseError for ValidationError {
 impl error::ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            ServerError::Validation(err) => return err.error_response(),
+            ServerError::Validation(err) => err.error_response(),
             ServerError::DB(_) => HttpResponse::InternalServerError().body("internal db error"),
-            ServerError::NotFound => return HttpResponse::NotFound().body("missing key address"),
-            ServerError::MetadataDecode => {
-                return HttpResponse::BadRequest().body("invalid metadata")
-            }
-            ServerError::Crypto(err) => return err.error_response(),
-            ServerError::Payment(err) => return err.error_response(),
+            ServerError::NotFound => HttpResponse::NotFound().body("missing key address"),
+            ServerError::MetadataDecode => HttpResponse::BadRequest().body("invalid metadata"),
+            ServerError::Crypto(err) => err.error_response(),
+            ServerError::Payment(err) => err.error_response(),
         }
     }
 }
@@ -98,11 +97,21 @@ pub enum PaymentError {
     InvalidAuth,
     NoToken,
     URIMalformed,
+    NoTx,
+    TxDeserialize(TxDeserializeError),
+    InvalidOutputs,
+    InvalidTx,
 }
 
 impl From<PaymentError> for ServerError {
     fn from(err: PaymentError) -> Self {
         ServerError::Payment(err)
+    }
+}
+
+impl From<TxDeserializeError> for PaymentError {
+    fn from(err: TxDeserializeError) -> PaymentError {
+        PaymentError::TxDeserialize(err)
     }
 }
 
@@ -118,6 +127,10 @@ impl fmt::Display for PaymentError {
             PaymentError::NoToken => "no token",
             PaymentError::InvalidAuth => "invalid authorization",
             PaymentError::URIMalformed => "malformed URI",
+            PaymentError::NoTx => "no payment tx",
+            PaymentError::TxDeserialize(_) => "payment tx malformed",
+            PaymentError::InvalidOutputs => "invalid outputs",
+            PaymentError::InvalidTx => "invalid tx",
         };
         write!(f, "{}", printable)
     }
@@ -135,6 +148,10 @@ impl error::ResponseError for PaymentError {
             PaymentError::InvalidAuth => HttpResponse::PaymentRequired(),
             PaymentError::NoToken => HttpResponse::PaymentRequired(),
             PaymentError::URIMalformed => HttpResponse::BadRequest(),
+            PaymentError::NoTx => HttpResponse::BadRequest(),
+            PaymentError::TxDeserialize(_) => HttpResponse::BadRequest(),
+            PaymentError::InvalidOutputs => HttpResponse::BadRequest(),
+            PaymentError::InvalidTx => HttpResponse::BadRequest(),
         }
         .body(self.to_string())
     }

@@ -16,7 +16,7 @@ use lazy_static::lazy_static;
 use log::{error, info};
 
 use crate::{
-    bitcoin::tx_stream,
+    bitcoin::{tx_stream, BitcoinClient, WalletState},
     db::KeyDB,
     net::{payments::*, *},
     settings::Settings,
@@ -40,6 +40,16 @@ fn main() -> io::Result<()> {
     // Open DB
     let key_db = KeyDB::try_new(&SETTINGS.db_path).unwrap();
 
+    // Init Wallet
+    let wallet_state = WalletState::default();
+
+    // Init Bitcoin Client
+    let bitcoin_client = BitcoinClient::new(
+        SETTINGS.node_ip.clone(),
+        SETTINGS.node_username.clone(),
+        SETTINGS.node_password.clone(),
+    );
+
     // Init ZMQ
     let (tx_stream, connection) = tx_stream::get_tx_stream(&format!(
         "tcp://{}:{}",
@@ -57,19 +67,26 @@ fn main() -> io::Result<()> {
     // Init REST server
     HttpServer::new(move || {
         let key_db_inner = key_db.clone();
+        let wallet_state_inner = wallet_state.clone();
+        let bitcoin_client_inner = bitcoin_client.clone();
+
         App::new()
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
             .service(
                 web::scope("/keys").service(
                     web::resource("/{addr}")
-                        .data(State(key_db_inner))
+                        .data(DBState(key_db_inner))
                         .wrap(CheckPayment) // Apply payment check to put key
                         .route(web::get().to(get_key))
                         .route(web::put().to_async(put_key)),
                 ),
             )
-            .service(web::resource("/payments").route(web::post().to_async(payment_handler)))
+            .service(
+                web::resource("/payments")
+                    .data((wallet_state_inner, bitcoin_client_inner))
+                    .route(web::post().to_async(payment_handler)),
+            )
             .service(actix_files::Files::new("/", "./static/").index_file("index.html"))
     })
     .bind(&SETTINGS.bind)?
