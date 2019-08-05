@@ -15,6 +15,7 @@ pub enum ServerError {
     NotFound,
     MetadataDecode,
     Payment(PaymentError),
+    NewAddr,
 }
 
 impl fmt::Display for ServerError {
@@ -26,6 +27,7 @@ impl fmt::Display for ServerError {
             ServerError::MetadataDecode => "metadata decoding error",
             ServerError::Payment(err) => return err.fmt(f),
             ServerError::Validation(err) => return err.fmt(f),
+            ServerError::NewAddr => "failed to fetch new addr",
         };
         write!(f, "{}", printable)
     }
@@ -82,6 +84,7 @@ impl error::ResponseError for ServerError {
             ServerError::MetadataDecode => HttpResponse::BadRequest().body("invalid metadata"),
             ServerError::Crypto(err) => err.error_response(),
             ServerError::Payment(err) => err.error_response(),
+            ServerError::NewAddr => HttpResponse::InternalServerError().finish(),
         }
     }
 }

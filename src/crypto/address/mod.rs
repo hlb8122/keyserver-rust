@@ -34,6 +34,10 @@ impl Address {
         Address { payload, scheme }
     }
 
+    pub fn into_payload(self) -> Vec<u8> {
+        self.payload
+    }
+
     pub fn encode(&self) -> Result<String, CryptoError> {
         match self.scheme {
             AddressScheme::CashAddr => CashAddrCodec::encode(&self.payload, Network::Mainnet),

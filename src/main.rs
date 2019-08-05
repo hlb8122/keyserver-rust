@@ -77,7 +77,10 @@ fn main() -> io::Result<()> {
                 web::scope("/keys").service(
                     web::resource("/{addr}")
                         .data(DBState(key_db_inner))
-                        .wrap(CheckPayment) // Apply payment check to put key
+                        .wrap(CheckPayment::new(
+                            bitcoin_client_inner.clone(),
+                            wallet_state_inner.clone(),
+                        )) // Apply payment check to put key
                         .route(web::get().to(get_key))
                         .route(web::put().to_async(put_key)),
                 ),

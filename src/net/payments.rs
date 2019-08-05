@@ -24,7 +24,8 @@ use serde_derive::Deserialize;
 use url::Url;
 
 use crate::{
-    bitcoin::{BitcoinClient, Network, WalletState},
+    bitcoin::*,
+    crypto::{AddressCodec, Base58Codec},
     models::*,
     SETTINGS,
 };
@@ -140,8 +141,13 @@ pub fn payment_handler(
 /*
 Payment middleware
 */
+pub struct CheckPayment(BitcoinClient, WalletState);
 
-pub struct CheckPayment;
+impl CheckPayment {
+    pub fn new(client: BitcoinClient, wallet_state: WalletState) -> Self {
+        CheckPayment(client, wallet_state)
+    }
+}
 
 impl<S> Transform<S> for CheckPayment
 where
@@ -156,11 +162,17 @@ where
     type Future = FutureResult<Self::Transform, Self::InitError>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ok(CheckPaymentMiddleware { service })
+        ok(CheckPaymentMiddleware {
+            service,
+            client: self.0.clone(),
+            wallet_state: self.1.clone(),
+        })
     }
 }
 pub struct CheckPaymentMiddleware<S> {
     service: S,
+    client: BitcoinClient,
+    wallet_state: WalletState,
 }
 
 impl<S> Service for CheckPaymentMiddleware<S>
@@ -171,7 +183,7 @@ where
     type Request = ServiceRequest;
     type Response = ServiceResponse<Body>;
     type Error = Error;
-    type Future = Either<S::Future, FutureResult<Self::Response, Self::Error>>;
+    type Future = Box<dyn Future<Item = Self::Response, Error = Self::Error>>;
 
     fn poll_ready(&mut self) -> Poll<(), Self::Error> {
         self.service.poll_ready()
@@ -181,7 +193,7 @@ where
         // Only pay for put
         match *req.method() {
             Method::PUT => (),
-            _ => return Either::A(self.service.call(req)),
+            _ => return Box::new(self.service.call(req)),
         }
 
         // Grab token query from authorization header then query string
@@ -191,13 +203,13 @@ where
                     if auth_str.len() >= 4 && &auth_str[0..4] == "POP " {
                         auth_str[4..].to_string()
                     } else {
-                        return Either::B(err(
+                        return Box::new(err(
                             ServerError::Payment(PaymentError::InvalidAuth).into()
                         ));
                     }
                 }
                 Err(_) => {
-                    return Either::B(err(ServerError::Payment(PaymentError::InvalidAuth).into()))
+                    return Box::new(err(ServerError::Payment(PaymentError::InvalidAuth).into()))
                 }
             },
             None => match web::Query::<TokenQuery>::from_query(req.query_string()) {
@@ -208,51 +220,73 @@ where
                     let current_time = SystemTime::now();
                     let expiry_time = current_time + Duration::from_secs(VALID_DURATION);
 
-                    // TODO: Generate output requests and add addr to wallet
+                    // Get new addr and add to wallet
+                    let wallet_state_inner = self.wallet_state.clone();
+                    let new_addr = self.client.get_new_addr().then(move |addr_opt| {
+                        if let Ok(addr_hex) = addr_opt {
+                            let addr = Base58Codec::decode(&addr_hex, Network::Mainnet)
+                                .map_err(|_| ServerError::NewAddr)?;
+                            let addr_raw = addr.into_payload();
+                            wallet_state_inner.add(addr_raw.clone());
+                            Ok(addr_raw)
+                        } else {
+                            Err(ServerError::NewAddr.into())
+                        }
+                    });
 
-                    // Generate payment details
+                    // Generate URI
                     let uri = req.uri();
                     let url = match (uri.scheme_str(), uri.authority_part()) {
                         (Some(scheme), Some(authority)) => {
                             format!("{}://{}{}", scheme, authority, uri.path())
                         }
                         (_, _) => {
-                            return Either::B(err(
+                            return Box::new(err(
                                 ServerError::Payment(PaymentError::URIMalformed).into()
                             ))
                         }
                     };
-                    let payment_details = PaymentDetails {
-                        network: Some(NETWORK.into()),
-                        time: current_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                        expires: Some(expiry_time.duration_since(UNIX_EPOCH).unwrap().as_secs()),
-                        memo: None,
-                        merchant_data: Some(url.as_bytes().to_vec()),
-                        outputs: vec![],
-                        payment_url: Some(PAYMENT_URL.to_string()),
-                    };
-                    let mut serialized_payment_details =
-                        Vec::with_capacity(payment_details.encoded_len());
-                    payment_details
-                        .encode(&mut serialized_payment_details)
-                        .unwrap();
 
-                    // Generate payment invoice
-                    let pki_type = Some("none".to_string());
-                    let payment_invoice = PaymentRequest {
-                        pki_type,
-                        pki_data: None,
-                        payment_details_version: Some(1),
-                        serialized_payment_details,
-                        signature: None,
-                    };
-                    let mut payment_invoice_raw = Vec::with_capacity(payment_invoice.encoded_len());
-                    payment_invoice.encode(&mut payment_invoice_raw).unwrap();
+                    let response = new_addr.and_then(move |addr_raw| {
+                        // Generate outputs
+                        let outputs = generate_outputs(addr_raw);
+
+                        // Collect payment details
+                        let payment_details = PaymentDetails {
+                            network: Some(NETWORK.into()),
+                            time: current_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                            expires: Some(
+                                expiry_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                            ),
+                            memo: None,
+                            merchant_data: Some(url.as_bytes().to_vec()),
+                            outputs,
+                            payment_url: Some(PAYMENT_URL.to_string()),
+                        };
+                        let mut serialized_payment_details =
+                            Vec::with_capacity(payment_details.encoded_len());
+                        payment_details
+                            .encode(&mut serialized_payment_details)
+                            .unwrap();
+
+                        // Generate payment invoice
+                        let pki_type = Some("none".to_string());
+                        let payment_invoice = PaymentRequest {
+                            pki_type,
+                            pki_data: None,
+                            payment_details_version: Some(1),
+                            serialized_payment_details,
+                            signature: None,
+                        };
+                        let mut payment_invoice_raw =
+                            Vec::with_capacity(payment_invoice.encoded_len());
+                        payment_invoice.encode(&mut payment_invoice_raw).unwrap();
+
+                        HttpResponse::PaymentRequired().body(payment_invoice_raw)
+                    });
 
                     // Respond
-                    return Either::B(ok(req.into_response(
-                        HttpResponse::PaymentRequired().body(payment_invoice_raw),
-                    )));
+                    return Box::new(response.map(|resp| req.into_response(resp)));
                 }
             },
         };
@@ -262,7 +296,7 @@ where
         let token = match base64::decode_config(&token_str, url_safe_config) {
             Ok(some) => some,
             Err(_) => {
-                return Either::B(ok(req.into_response(
+                return Box::new(ok(req.into_response(
                     ServerError::Payment(PaymentError::InvalidAuth).error_response(),
                 )))
             }
@@ -273,17 +307,17 @@ where
         let url = match (uri.scheme_str(), uri.authority_part()) {
             (Some(scheme), Some(authority)) => format!("{}://{}{}", scheme, authority, uri.path()),
             (_, _) => {
-                return Either::B(ok(req.into_response(
+                return Box::new(ok(req.into_response(
                     ServerError::Payment(PaymentError::URIMalformed).error_response(),
                 )))
             }
         };
         if !validate_token(url.as_bytes(), &token, SETTINGS.secret.as_bytes()) {
-            Either::B(ok(req.into_response(
+            Box::new(ok(req.into_response(
                 ServerError::Payment(PaymentError::InvalidAuth).error_response(),
             )))
         } else {
-            Either::A(self.service.call(req))
+            Box::new(self.service.call(req))
         }
     }
 }

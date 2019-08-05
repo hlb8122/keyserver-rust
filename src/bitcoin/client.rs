@@ -14,7 +14,7 @@ impl BitcoinClient {
     }
 
     pub fn get_new_addr(&mut self) -> Box<Future<Item = String, Error = ClientError> + Send> {
-        let request = self.0.build_request("getnewaddress".to_string(), vec![]); // TODO: Add to wallet
+        let request = self.0.build_request("getnewaddress".to_string(), vec![]);
         Box::new(
             self.0
                 .send_request(&request)
