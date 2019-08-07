@@ -7,7 +7,7 @@ use crate::{bitcoin::Network, crypto::errors::CryptoError};
 pub struct CashAddrCodec;
 
 impl AddressCodec for CashAddrCodec {
-    fn encode(raw: &[u8], network: Network) -> Result<String, CryptoError> {
+    fn encode(raw: &[u8], network: &Network) -> Result<String, CryptoError> {
         let version_byte = match raw.len() {
             20 => version_byte_flags::SIZE_160,
             24 => version_byte_flags::SIZE_192,
@@ -24,6 +24,7 @@ impl AddressCodec for CashAddrCodec {
         let prefix = match network {
             Network::Mainnet => MAINNET_PREFIX,
             Network::Testnet => TESTNET_PREFIX,
+            Network::Regnet => REGNET_PREFIX,
         };
 
         // Generate the payload used both for calculating the checkum and the resulting address
@@ -64,7 +65,7 @@ impl AddressCodec for CashAddrCodec {
         Ok(cashaddr)
     }
 
-    fn decode(input: &str, network: Network) -> Result<Address, CryptoError> {
+    fn decode(input: &str, network: &Network) -> Result<Address, CryptoError> {
         // Do some sanity checks on the string
         let mut upper = false;
         let mut lower = false;
@@ -86,6 +87,7 @@ impl AddressCodec for CashAddrCodec {
         let prefix = match network {
             Network::Mainnet => MAINNET_PREFIX,
             Network::Testnet => TESTNET_PREFIX,
+            Network::Regnet => REGNET_PREFIX,
         };
 
         // Split the prefix from the rest
@@ -156,6 +158,7 @@ impl AddressCodec for CashAddrCodec {
 // Prefixes
 const MAINNET_PREFIX: &str = "bitcoincash";
 const TESTNET_PREFIX: &str = "bchtest";
+const REGNET_PREFIX: &str = "bchreg";
 
 // Cashaddr lookup tables to convert a 5-bit number to an ascii character and back
 const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
@@ -331,10 +334,8 @@ mod tests {
     }
 
     fn verify(network: Network, data: &Vec<u8>, cashaddr: &str) {
-        assert!(
-            CashAddrCodec::encode(data, network.clone()).unwrap() == cashaddr.to_ascii_lowercase()
-        );
-        let decoded = CashAddrCodec::decode(cashaddr, network).unwrap();
+        assert!(CashAddrCodec::encode(data, &network).unwrap() == cashaddr.to_ascii_lowercase());
+        let decoded = CashAddrCodec::decode(cashaddr, &network).unwrap();
         assert!(decoded.as_ref().to_vec() == *data);
     }
 }

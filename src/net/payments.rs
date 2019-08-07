@@ -25,7 +25,7 @@ use url::Url;
 
 use crate::{
     bitcoin::*,
-    crypto::{AddressCodec, Base58Codec},
+    crypto::{AddressCodec, CashAddrCodec},
     models::*,
     SETTINGS,
 };
@@ -34,7 +34,6 @@ use super::{errors::*, token::*};
 
 const PAYMENT_URL: &str = "/payments";
 const VALID_DURATION: u64 = 30;
-const NETWORK: Network = Network::Mainnet;
 
 #[derive(Deserialize)]
 pub struct TokenQuery {
@@ -45,7 +44,7 @@ pub struct TokenQuery {
 pub fn payment_handler(
     req: HttpRequest,
     payload: web::Payload,
-    data: web::Data<(WalletState, BitcoinClient)>,
+    data: web::Data<(BitcoinClient, WalletState)>,
 ) -> Box<Future<Item = HttpResponse, Error = ServerError>> {
     // Check headers
     let headers = req.headers();
@@ -82,16 +81,16 @@ pub fn payment_handler(
             };
 
             // Check outputs
-            let wallet_data = &data.0;
+            let wallet_data = &data.1;
             if !wallet_data.check_outputs(tx) {
                 return Either::A(err(PaymentError::InvalidOutputs));
             }
 
             // Send tx
-            let bitcoin_client = &data.1;
+            let bitcoin_client = &data.0;
             Either::B(
                 bitcoin_client
-                    .send_tx(format!("{:x?}", tx_raw))
+                    .send_tx(tx_raw)
                     .and_then(|_txid| {
                         // Create payment ack
                         let memo = Some("Thanks for your custom!".to_string());
@@ -222,17 +221,19 @@ where
 
                     // Get new addr and add to wallet
                     let wallet_state_inner = self.wallet_state.clone();
-                    let new_addr = self.client.get_new_addr().then(move |addr_opt| {
-                        if let Ok(addr_hex) = addr_opt {
-                            let addr = Base58Codec::decode(&addr_hex, Network::Mainnet)
-                                .map_err(|_| ServerError::NewAddr)?;
-                            let addr_raw = addr.into_payload();
-                            wallet_state_inner.add(addr_raw.clone());
-                            Ok(addr_raw)
-                        } else {
-                            Err(ServerError::NewAddr.into())
-                        }
-                    });
+                    let new_addr =
+                        self.client
+                            .get_new_addr()
+                            .then(move |addr_opt| match addr_opt {
+                                Ok(addr_str) => {
+                                    let addr = CashAddrCodec::decode(&addr_str, &SETTINGS.network)
+                                        .map_err(|_| ServerError::NewAddr)?;
+                                    let addr_raw = addr.into_payload();
+                                    wallet_state_inner.add(addr_raw.clone());
+                                    Ok(addr_raw)
+                                }
+                                Err(_e) => Err(ServerError::NewAddr.into()),
+                            });
 
                     // Generate URI
                     let uri = req.uri();
@@ -253,7 +254,7 @@ where
 
                         // Collect payment details
                         let payment_details = PaymentDetails {
-                            network: Some(NETWORK.into()),
+                            network: Some(SETTINGS.network.to_string()),
                             time: current_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
                             expires: Some(
                                 expiry_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
@@ -324,23 +325,116 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use actix_web::{http::StatusCode, test, web, App};
+    use bigdecimal::BigDecimal;
+    use serde_json::json;
+
     use crate::{
+        bitcoin::PRICE,
+        crypto::Base58Codec,
         db::KeyDB,
         models::PaymentRequest,
-        net::{tests::generate_address_metadata, *},
+        net::{jsonrpc_client::JsonClient, tests::generate_address_metadata, *},
     };
-    use actix_web::{http::StatusCode, test, web, App};
-    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::*;
+
+    #[derive(Deserialize)]
+    struct Outpoint {
+        pub txid: String,
+        pub vout: u32,
+        pub amount: BigDecimal,
+        pub address: String,
+    }
+
+    #[derive(Deserialize)]
+    struct SignedHex {
+        pub hex: String,
+    }
+
+    fn generate_raw_tx(recv_addr: Vec<u8>, _data: Vec<u8>) -> Vec<u8> {
+        let client = JsonClient::new(
+            format!(
+                "http://{}:{}",
+                SETTINGS.node_ip.clone(),
+                SETTINGS.node_rpc_port
+            ),
+            SETTINGS.node_username.clone(),
+            SETTINGS.node_password.clone(),
+        );
+
+        // Get unspent output
+        let unspent_req = client.build_request("listunspent".to_string(), vec![]);
+        let utxos = client
+            .send_request(&unspent_req)
+            .and_then(|resp| resp.into_result::<Vec<Outpoint>>());
+        let utxos = actix_web::test::block_on(utxos).unwrap();
+        let utxo = utxos.get(0).unwrap();
+
+        let inputs_json = json!(
+            [{
+                "txid": utxo.txid,
+                "vout": utxo.vout
+            }]
+        );
+
+        let bitcoin_amount = BigDecimal::from(PRICE) / 100_000_000;
+        let fee = BigDecimal::from(1) / 100_000_000;
+        let change = &utxo.amount - &bitcoin_amount - fee;
+        let outputs_json = json!([
+            { Base58Codec::encode(&recv_addr, &Network::Regnet).unwrap(): bitcoin_amount },
+            { &utxo.address: change } // { "data": hex::encode(data[1..]) } // TODO: Add op_return data
+        ]);
+
+        // Get raw transaction
+        let raw_tx_req = client.build_request(
+            "createrawtransaction".to_string(),
+            vec![inputs_json, outputs_json],
+        );
+        let unsigned_raw_tx = client
+            .send_request(&raw_tx_req)
+            .and_then(|resp| resp.into_result::<String>());
+        let unsigned_raw_tx = actix_web::test::block_on(unsigned_raw_tx).unwrap();
+
+        // Sign raw transaction
+        let signed_raw_req = client.build_request(
+            "signrawtransactionwithwallet".to_string(),
+            vec![json!(unsigned_raw_tx)],
+        );
+        let signed_raw_tx = client
+            .send_request(&signed_raw_req)
+            .and_then(|resp| resp.into_result::<SignedHex>())
+            .map(|signed_hex| signed_hex.hex);
+        let signed_raw_tx = actix_web::test::block_on(signed_raw_tx).unwrap();
+        hex::decode(signed_raw_tx).unwrap()
+    }
 
     #[test]
     fn test_put_no_token() {
-        // Init routes
+        // Init db
         let key_db = KeyDB::try_new("./test_db/no_token").unwrap();
+
+        // Init wallet
+        let wallet_state = WalletState::default();
+
+        // Init Bitcoin client
+        let bitcoin_client = BitcoinClient::new(
+            format!(
+                "http://{}:{}",
+                SETTINGS.node_ip.clone(),
+                SETTINGS.node_rpc_port
+            ),
+            SETTINGS.node_username.clone(),
+            SETTINGS.node_password.clone(),
+        );
+
+        // Init testing app
         let mut app = test::init_service(
             App::new()
                 .data(DBState(key_db))
-                .wrap(CheckPayment) // Apply payment check to put key
+                .wrap(CheckPayment::new(bitcoin_client, wallet_state)) // Apply payment check to put key
                 .route("/keys/{addr}", web::put().to(put_key)),
         );
 
@@ -363,7 +457,7 @@ mod tests {
 
         // Check invoice is valid
         let payment_details = PaymentDetails::decode(invoice.serialized_payment_details).unwrap();
-        assert_eq!(payment_details.network.unwrap(), "main".to_string());
+        assert_eq!(payment_details.network.unwrap(), "regnet".to_string());
         assert!(payment_details.expires.unwrap() > payment_details.time);
         assert!(
             SystemTime::now()
@@ -381,19 +475,42 @@ mod tests {
 
     #[test]
     fn test_put_payment() {
-        // Init routes
+        // Init db
         let key_db = KeyDB::try_new("./test_db/payment").unwrap();
+
+        // Init wallet
+        let wallet_state = WalletState::default();
+
+        // Init Bitcoin client
+        let bitcoin_client = BitcoinClient::new(
+            format!(
+                "http://{}:{}",
+                SETTINGS.node_ip.clone(),
+                SETTINGS.node_rpc_port
+            ),
+            SETTINGS.node_username.clone(),
+            SETTINGS.node_password.clone(),
+        );
+
+        // Init testing app
         let mut app = test::init_service(
             App::new()
                 .service(
                     web::scope("/keys").service(
                         web::resource("/{addr}")
                             .data(DBState(key_db))
-                            .wrap(CheckPayment) // Apply payment check to put key
+                            .wrap(CheckPayment::new(
+                                bitcoin_client.clone(),
+                                wallet_state.clone(),
+                            )) // Apply payment check to put key
                             .route(web::put().to_async(put_key)),
                     ),
                 )
-                .service(web::resource("/payments").route(web::post().to_async(payment_handler))),
+                .service(
+                    web::resource("/payments")
+                        .data((bitcoin_client, wallet_state))
+                        .route(web::post().to_async(payment_handler)),
+                ),
         );
 
         // Put key with no token
@@ -410,11 +527,14 @@ mod tests {
         let invoice_raw = body_vec.get(0).unwrap();
         let invoice = PaymentRequest::decode(invoice_raw).unwrap();
         let payment_details = PaymentDetails::decode(invoice.serialized_payment_details).unwrap();
+        let p2pkh = payment_details.outputs.get(0).unwrap();
+        let addr = p2pkh.script[3..23].to_vec();
+        let tx = generate_raw_tx(addr, vec![]); // TODO: Add op_return
         let payment = Payment {
             merchant_data: payment_details.merchant_data,
             memo: None,
             refund_to: vec![],
-            transactions: vec![],
+            transactions: vec![tx],
         };
         let mut payment_raw = Vec::with_capacity(payment.encoded_len());
         payment.encode(&mut payment_raw).unwrap();

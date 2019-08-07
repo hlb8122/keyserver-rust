@@ -15,7 +15,7 @@ args:
         takes_value: true
     - node-ip:
         long: node-ip
-        help: Bitcoin RPC port
+        help: Bitcoin ip address
         takes_value: true
     - rpc-port:
         long: rpc-port
@@ -37,4 +37,8 @@ args:
         short: d
         long: db-path
         help: Database path
+        takes_value: true
+    - network:
+        long: network
+        help: Bitcoin network
         takes_value: true

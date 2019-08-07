@@ -73,15 +73,14 @@ pub fn put_key(
 mod tests {
     use super::*;
     use crate::{
-        bitcoin::Network,
         crypto::{ecdsa::Secp256k1PublicKey, *},
         models::*,
+        SETTINGS,
     };
     use actix_service::Service;
     use actix_web::{http::StatusCode, test, web, App};
     use bitcoin_hashes::{sha256, Hash};
     use secp256k1::{rand, Secp256k1};
-    use serde::Serialize;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     pub fn generate_address_metadata() -> (String, Vec<u8>) {
@@ -93,7 +92,7 @@ mod tests {
         let address_raw = public_key.to_raw_address();
 
         // Generate address
-        let address_base58 = Base58Codec::encode(&address_raw, Network::Mainnet).unwrap();
+        let address_base58 = Base58Codec::encode(&address_raw, &SETTINGS.network).unwrap();
 
         // Construct header
         let headers = vec![Header {

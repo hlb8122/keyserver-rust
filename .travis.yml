@@ -3,11 +3,25 @@ language: rust
 rust:
   - stable
 
+cache: cargo
 before_install:
   - sudo apt update
-  - sudo apt install -y pkg-config libzmq3-dev
+  - sudo apt install -y pkg-config libzmq3-dev libssl-dev
 
-cache: cargo
-script:
-- cargo build --verbose
-- cargo test --verbose
+jobs:
+  include:
+  - stage: unittest
+    script:
+    - cargo build --verbose
+    - cargo test --verbose
+  - stage: regtest
+    script:
+    - wget https://download.bitcoinabc.org/0.19.10/linux/bitcoin-abc-0.19.10-x86_64-linux-gnu.tar.gz
+    - tar xvzf bitcoin-abc-0.19.10-x86_64-linux-gnu.tar.gz
+    - ./bitcoin-abc-0.19.10/bin/bitcoind -daemon -regtest -zmqpubrawtx=tcp://127.0.0.1:28332 -rpcallowip=0.0.0.0/0 -server -rpcuser=username -rpcpassword=password -rpcport=18332
+    - sleep 15
+    - ./bitcoin-abc-0.19.10/bin/bitcoin-cli -regtest -rpcuser=username -rpcpassword=password generate 101
+    - NEW_ADDRESS=$(./bitcoin-abc-0.19.10/bin/bitcoin-cli -regtest -rpcuser=username -rpcpassword=password getnewaddress)
+    - ./bitcoin-abc-0.19.10/bin/bitcoin-cli -regtest -rpcuser=username -rpcpassword=password -regtest sendtoaddress $NEW_ADDRESS 20.00
+    - cargo test 
+  

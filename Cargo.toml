@@ -18,13 +18,14 @@ clap = { version = "*", features = ["yaml"] }
 config = "*"
 dirs = "*"
 env_logger = "*"
+hex = "*"
 lazy_static = "*"
 log = "*"
 futures = "*"
 prost = "*"
 reqwest = "*"
-secp256k1 = "0.12.0"
 rocksdb = "*"
+secp256k1 = "0.12.0"
 serde = "*"
 serde_json = "*"
 serde_derive = "*"
@@ -35,5 +36,5 @@ url = "*"
 prost-build = "*"
 
 [dev-dependencies]
-hex = "*"
-secp256k1 = {version = "*", features=["rand"]}
+secp256k1 = { version = "*", features = ["rand"] }
+bigdecimal = { version = "*", features = ["serde"] }

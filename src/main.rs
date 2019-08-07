@@ -40,12 +40,16 @@ fn main() -> io::Result<()> {
     // Open DB
     let key_db = KeyDB::try_new(&SETTINGS.db_path).unwrap();
 
-    // Init Wallet
+    // Init wallet
     let wallet_state = WalletState::default();
 
-    // Init Bitcoin Client
+    // Init Bitcoin client
     let bitcoin_client = BitcoinClient::new(
-        SETTINGS.node_ip.clone(),
+        format!(
+            "http://{}:{}",
+            SETTINGS.node_ip.clone(),
+            SETTINGS.node_rpc_port
+        ),
         SETTINGS.node_username.clone(),
         SETTINGS.node_password.clone(),
     );
@@ -70,10 +74,12 @@ fn main() -> io::Result<()> {
         let wallet_state_inner = wallet_state.clone();
         let bitcoin_client_inner = bitcoin_client.clone();
 
+        // Init app
         App::new()
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
             .service(
+                // Key scope
                 web::scope("/keys").service(
                     web::resource("/{addr}")
                         .data(DBState(key_db_inner))
@@ -86,8 +92,9 @@ fn main() -> io::Result<()> {
                 ),
             )
             .service(
+                // Payment endpoint
                 web::resource("/payments")
-                    .data((wallet_state_inner, bitcoin_client_inner))
+                    .data((bitcoin_client_inner, wallet_state_inner))
                     .route(web::post().to_async(payment_handler)),
             )
             .service(actix_files::Files::new("/", "./static/").index_file("index.html"))

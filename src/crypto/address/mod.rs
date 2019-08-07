@@ -6,6 +6,7 @@ use bitcoin_hashes::{ripemd160, Hash};
 use crate::{
     bitcoin::Network,
     crypto::{errors::CryptoError, PublicKey},
+    SETTINGS,
 };
 
 pub use base58::Base58Codec;
@@ -40,14 +41,14 @@ impl Address {
 
     pub fn encode(&self) -> Result<String, CryptoError> {
         match self.scheme {
-            AddressScheme::CashAddr => CashAddrCodec::encode(&self.payload, Network::Mainnet),
-            AddressScheme::Base58 => Base58Codec::encode(&self.payload, Network::Mainnet),
+            AddressScheme::CashAddr => CashAddrCodec::encode(&self.payload, &SETTINGS.network),
+            AddressScheme::Base58 => Base58Codec::encode(&self.payload, &SETTINGS.network),
         }
     }
 
     pub fn decode(input: &str) -> Result<Self, CryptoError> {
-        CashAddrCodec::decode(input, Network::Mainnet)
-            .or_else(|_| Base58Codec::decode(input, Network::Mainnet))
+        CashAddrCodec::decode(input, &SETTINGS.network)
+            .or_else(|_| Base58Codec::decode(input, &SETTINGS.network))
     }
 }
 
@@ -62,7 +63,7 @@ impl<P: PublicKey> Addressable for P {
 }
 
 pub trait AddressCodec {
-    fn encode(raw: &[u8], network: Network) -> Result<String, CryptoError>;
+    fn encode(raw: &[u8], network: &Network) -> Result<String, CryptoError>;
 
-    fn decode(s: &str, network: Network) -> Result<Address, CryptoError>;
+    fn decode(s: &str, network: &Network) -> Result<Address, CryptoError>;
 }

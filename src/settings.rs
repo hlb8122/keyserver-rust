@@ -2,6 +2,8 @@ use clap::App;
 use config::{Config, ConfigError, File};
 use serde_derive::Deserialize;
 
+use crate::bitcoin::Network;
+
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub bind: String,
@@ -12,6 +14,7 @@ pub struct Settings {
     pub node_zmq_port: u16,
     pub secret: String,
     pub db_path: String,
+    pub network: Network,
 }
 
 impl Settings {
@@ -27,14 +30,15 @@ impl Settings {
         };
         s.set_default("bind", "0.0.0.0:8080").unwrap();
         s.set_default("node_ip", "127.0.0.1").unwrap();
-        s.set_default("node_rpc_port", "8332").unwrap();
-        s.set_default("node_username", "").unwrap();
-        s.set_default("node_password", "").unwrap();
-        s.set_default("node_zmq_port", "8332").unwrap();
+        s.set_default("node_rpc_port", "18332").unwrap();
+        s.set_default("node_username", "username").unwrap();
+        s.set_default("node_password", "password").unwrap();
+        s.set_default("node_zmq_port", "28332").unwrap();
         s.set_default("secret", "b").unwrap();
         let mut default_db = home_dir.clone();
         default_db.push(".keyserver-rust/db");
         s.set_default("db_path", default_db.to_str()).unwrap();
+        s.set_default("network", "regnet").unwrap();
 
         // Load config from file
         let mut default_config = home_dir.clone();
@@ -81,6 +85,9 @@ impl Settings {
         // Set db from cmd line
         if let Some(db_path) = matches.value_of("db-path") {
             s.set("db_path", db_path)?;
+        }
+        if let Some(db_path) = matches.value_of("network") {
+            s.set("network", db_path)?;
         }
         s.try_into()
     }

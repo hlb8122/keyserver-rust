@@ -1,14 +1,16 @@
 mod client;
 pub mod tx_stream;
 
-const PRICE: u64 = 5;
+pub const PRICE: u64 = 5;
 
 use std::{
     collections::HashSet,
+    string::ToString,
     sync::{Arc, RwLock},
 };
 
 use bitcoin::Transaction;
+use serde::Deserialize;
 
 use crate::{
     crypto::{Address, AddressScheme},
@@ -19,17 +21,19 @@ pub use client::BitcoinClient;
 
 const KEYSERVER_PREFIX: &[u8; 9] = b"keyserver";
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize)]
 pub enum Network {
     Mainnet = 0,
     Testnet = 1,
+    Regnet = 2,
 }
 
-impl Into<String> for Network {
-    fn into(self) -> String {
+impl ToString for Network {
+    fn to_string(&self) -> String {
         match self {
-            Network::Mainnet => "main".to_string(),
-            Network::Testnet => "test".to_string(),
+            Network::Mainnet => "mainnet".to_string(),
+            Network::Testnet => "testnet".to_string(),
+            Network::Regnet => "regnet".to_string(),
         }
     }
 }
@@ -123,15 +127,29 @@ fn extract_pubkey_hash(raw_script: &[u8]) -> Option<Vec<u8>> {
     Some(raw_script[3..23].to_vec())
 }
 
-pub fn generate_outputs(raw_addr: Vec<u8>) -> Vec<Output> {
+pub fn generate_outputs(pk_hash: Vec<u8>) -> Vec<Output> {
     // Generate p2pkh
     let p2pkh_script_pre: [u8; 3] = [118, 169, 20];
     let p2pkh_script_post: [u8; 2] = [136, 172];
-    let p2pkh_script = [&p2pkh_script_pre[..], &raw_addr[..], &p2pkh_script_post[..]].concat();
+    let p2pkh_script = [&p2pkh_script_pre[..], &pk_hash[..], &p2pkh_script_post[..]].concat();
     let p2pkh_output = Output {
         amount: Some(PRICE),
         script: p2pkh_script,
     };
 
     vec![p2pkh_output]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gen_check_output() {
+        let pk_hash = [3; 20].to_vec();
+        let outputs = generate_outputs(pk_hash.clone());
+        assert_eq!(PRICE, outputs.get(0).unwrap().amount.unwrap());
+        let extracted_pkh = extract_pubkey_hash(&outputs.get(0).unwrap().script[..]);
+        assert_eq!(pk_hash, extracted_pkh.unwrap());
+    }
 }
