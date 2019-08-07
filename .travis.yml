@@ -10,10 +10,13 @@ before_install:
 
 jobs:
   include:
+  - stage: build
+    script:
+      cargo build --verbose
   - stage: unittest
     script:
-    - cargo build --verbose
-    - cargo test --verbose
+    - cargo test bitcoin
+    - cargo test crypto
   - stage: regtest
     script:
     - wget https://download.bitcoinabc.org/0.19.10/linux/bitcoin-abc-0.19.10-x86_64-linux-gnu.tar.gz
@@ -23,5 +26,5 @@ jobs:
     - ./bitcoin-abc-0.19.10/bin/bitcoin-cli -regtest -rpcuser=username -rpcpassword=password generate 101
     - NEW_ADDRESS=$(./bitcoin-abc-0.19.10/bin/bitcoin-cli -regtest -rpcuser=username -rpcpassword=password getnewaddress)
     - ./bitcoin-abc-0.19.10/bin/bitcoin-cli -regtest -rpcuser=username -rpcpassword=password -regtest sendtoaddress $NEW_ADDRESS 20.00
-    - cargo test 
+    - cargo test
   

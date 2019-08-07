@@ -30,7 +30,9 @@ use crate::{
     SETTINGS,
 };
 
-use super::{errors::*, token::*};
+use super::errors::*;
+
+use crate::crypto::token::*;
 
 const PAYMENT_URL: &str = "/payments";
 const VALID_DURATION: u64 = 30;

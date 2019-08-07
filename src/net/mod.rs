@@ -2,7 +2,6 @@ pub mod errors;
 pub mod jsonrpc_client;
 pub mod payments;
 pub mod peer;
-pub mod token;
 
 use actix_web::{web, HttpResponse};
 use bytes::BytesMut;
