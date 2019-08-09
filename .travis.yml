@@ -19,9 +19,10 @@ jobs:
     - cargo test crypto
   - stage: regtest
     script:
-    - sudo add-apt-repository ppa:bitcoin-abc/ppa
+    - sudo add-apt-repository -y ppa:bitcoin-abc/ppa
     - sudo apt-get update
-    - sudo apt install -y bitcoinabc
+    - sudo apt install -y libzmq3-dev
+    - sudo apt install -y bitcoind
     - bitcoind -daemon -regtest -zmqpubrawtx=tcp://127.0.0.1:28332 -rpcallowip=0.0.0.0/0 -server -rpcuser=username -rpcpassword=password -rpcport=18332
     - sleep 15
     - bitcoin-cli -regtest -rpcuser=username -rpcpassword=password generate 101
