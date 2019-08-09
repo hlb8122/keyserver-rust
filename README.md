@@ -1,5 +1,6 @@
 # Cash:web Keyserver (Rust Implementation)
 [![Build Status](https://travis-ci.org/hlb8122/keyserver-rust.svg?branch=master)](https://travis-ci.org/hlb8122/keyserver-rust)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [**Golang Implementation**](https://github.com/cashweb/keyserver/)
 
