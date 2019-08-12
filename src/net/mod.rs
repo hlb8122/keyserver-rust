@@ -79,6 +79,7 @@ mod tests {
     use actix_service::Service;
     use actix_web::{http::StatusCode, test, web, App};
     use bitcoin_hashes::{sha256, Hash};
+    use bitcoincash_addr::HashType;
     use secp256k1::{rand, Secp256k1};
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -91,7 +92,9 @@ mod tests {
         let address_raw = public_key.to_raw_address();
 
         // Generate address
-        let address_base58 = Base58Codec::encode(&address_raw, &SETTINGS.network).unwrap();
+        let address_base58 =
+            Base58Codec::encode(&address_raw, HashType::Key, SETTINGS.network.clone().into())
+                .unwrap();
 
         // Construct header
         let headers = vec![Header {

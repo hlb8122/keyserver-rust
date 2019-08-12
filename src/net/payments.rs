@@ -13,6 +13,7 @@ use actix_web::{
     web, Error, HttpRequest, HttpResponse, ResponseError,
 };
 use bitcoin::{util::psbt::serialize::Deserialize, Transaction};
+use bitcoincash_addr::HashType;
 use bytes::BytesMut;
 use futures::{
     future::{err, ok, Either, Future, FutureResult},
@@ -228,13 +229,23 @@ where
                             .get_new_addr()
                             .then(move |addr_opt| match addr_opt {
                                 Ok(addr_str) => {
-                                    let addr = CashAddrCodec::decode(&addr_str, &SETTINGS.network)
-                                        .map_err(|_| ServerError::NewAddr)?;
-                                    let addr_raw = addr.into_payload();
+                                    let addr = CashAddrCodec::decode(&addr_str)
+                                        .map_err(ServerError::Address)?;
+                                    let network: Network = addr.network.clone().into();
+                                    if network != SETTINGS.network
+                                        || addr.hash_type != HashType::Key
+                                    {
+                                        return Err(ServerError::Payment(
+                                            PaymentError::MismatchedNetwork,
+                                        ))?; // TODO: Finer grained error here
+                                    }
+                                    let addr_raw = addr.into_body();
                                     wallet_state_inner.add(addr_raw.clone());
                                     Ok(addr_raw)
                                 }
-                                Err(_e) => Err(ServerError::NewAddr.into()),
+                                Err(_e) => {
+                                    Err(ServerError::Payment(PaymentError::AddrFetchFailed).into())
+                                }
                             });
 
                     // Generate URI
@@ -331,6 +342,7 @@ mod tests {
 
     use actix_web::{http::StatusCode, test, web, App};
     use bigdecimal::BigDecimal;
+    use bitcoincash_addr::HashType;
     use serde_json::json;
 
     use crate::{
@@ -386,7 +398,10 @@ mod tests {
         let fee = BigDecimal::from(1) / 100_000_000;
         let change = &utxo.amount - &bitcoin_amount - fee;
         let outputs_json = json!([
-            { Base58Codec::encode(&recv_addr, &Network::Regnet).unwrap(): bitcoin_amount },
+            {
+                Base58Codec::encode(&recv_addr, HashType::Key, SETTINGS.network.clone().into())
+                    .unwrap(): bitcoin_amount
+            },
             { &utxo.address: change } // { "data": hex::encode(data[1..]) } // TODO: Add op_return data
         ]);
 

@@ -1,7 +1,7 @@
 [package]
 name = "keyserver"
 version = "0.1.0"
-authors = ["harry <hlbarber93@gmail.com>"]
+authors = ["Harry L. Barber <hlbarber93@gmail.com>"]
 edition = "2018"
 
 [dependencies]
@@ -11,7 +11,8 @@ actix-service = "*"
 actix-rt = "*"
 base64 = "*"
 bitcoin = "*"
-bitcoin-zmq = { git = "https://github.com/hlb8122/rust-bitcoin-zmq.git" }
+bitcoin-zmq = "*"
+bitcoincash-addr = "*"
 bitcoin_hashes = "*"
 bytes = "*"
 clap = { version = "*", features = ["yaml"] }

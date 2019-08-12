@@ -1,4 +1,3 @@
-mod address;
 pub mod authentication;
 pub mod ecdsa;
 pub mod errors;
@@ -6,7 +5,8 @@ pub mod token;
 
 use errors::CryptoError;
 
-pub use address::*;
+use bitcoin_hashes::{ripemd160::Hash as Ripemd160, Hash};
+pub use bitcoincash_addr::*;
 
 pub trait PublicKey
 where
@@ -28,4 +28,14 @@ pub trait SigScheme {
     type Signature: Signature;
 
     fn verify(msg: &[u8], key: &Self::PublicKey, sig: &Self::Signature) -> Result<(), CryptoError>;
+}
+
+pub trait Addressable {
+    fn to_raw_address(&self) -> Vec<u8>;
+}
+
+impl<P: PublicKey> Addressable for P {
+    fn to_raw_address(&self) -> Vec<u8> {
+        Ripemd160::hash(&self.serialize()).to_vec()
+    }
 }

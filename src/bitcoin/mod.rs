@@ -12,20 +12,37 @@ use std::{
 use bitcoin::Transaction;
 use serde::Deserialize;
 
-use crate::{
-    crypto::{Address, AddressScheme},
-    models::Output,
-};
+use crate::{crypto::Address, models::Output, SETTINGS};
 
 pub use client::BitcoinClient;
 
 const KEYSERVER_PREFIX: &[u8; 9] = b"keyserver";
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub enum Network {
     Mainnet = 0,
     Testnet = 1,
     Regnet = 2,
+}
+
+impl From<bitcoincash_addr::Network> for Network {
+    fn from(network: bitcoincash_addr::Network) -> Network {
+        match network {
+            bitcoincash_addr::Network::Main => Network::Mainnet,
+            bitcoincash_addr::Network::Test => Network::Testnet,
+            bitcoincash_addr::Network::Regtest => Network::Regnet,
+        }
+    }
+}
+
+impl Into<bitcoincash_addr::Network> for Network {
+    fn into(self) -> bitcoincash_addr::Network {
+        match self {
+            Network::Mainnet => bitcoincash_addr::Network::Main,
+            Network::Testnet => bitcoincash_addr::Network::Test,
+            Network::Regnet => bitcoincash_addr::Network::Regtest,
+        }
+    }
 }
 
 impl ToString for Network {
@@ -96,7 +113,11 @@ pub fn extract_op_return(script: &[u8]) -> Option<(String, Address, Vec<u8>)> {
 
     // Parse bitcoin address
     let bitcoin_addr_raw = script[10..30].to_vec();
-    let bitcoin_addr = Address::new(bitcoin_addr_raw, AddressScheme::Base58);
+    let bitcoin_addr = Address {
+        body: bitcoin_addr_raw,
+        network: SETTINGS.network.clone().into(),
+        ..Default::default()
+    };
 
     // Parse metaaddress digest
     let meta_digest = script[30..50].to_vec();

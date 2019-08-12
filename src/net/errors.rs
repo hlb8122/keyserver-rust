@@ -2,6 +2,7 @@ use std::fmt;
 
 use actix_web::{error, HttpResponse};
 use bitcoin::consensus::encode::Error as TxDeserializeError;
+use bitcoincash_addr::AddressError;
 use prost::DecodeError;
 use rocksdb::Error as RocksError;
 
@@ -15,7 +16,7 @@ pub enum ServerError {
     NotFound,
     MetadataDecode,
     Payment(PaymentError),
-    NewAddr,
+    Address(AddressError),
 }
 
 impl fmt::Display for ServerError {
@@ -27,9 +28,15 @@ impl fmt::Display for ServerError {
             ServerError::MetadataDecode => "metadata decoding error",
             ServerError::Payment(err) => return err.fmt(f),
             ServerError::Validation(err) => return err.fmt(f),
-            ServerError::NewAddr => "failed to fetch new addr",
+            ServerError::Address(err) => return err.fmt(f),
         };
         write!(f, "{}", printable)
+    }
+}
+
+impl From<AddressError> for ServerError {
+    fn from(err: AddressError) -> Self {
+        ServerError::Address(err)
     }
 }
 
@@ -84,7 +91,7 @@ impl error::ResponseError for ServerError {
             ServerError::MetadataDecode => HttpResponse::BadRequest().body("invalid metadata"),
             ServerError::Crypto(err) => err.error_response(),
             ServerError::Payment(err) => err.error_response(),
-            ServerError::NewAddr => HttpResponse::InternalServerError().finish(),
+            _ => HttpResponse::InternalServerError().finish(),
         }
     }
 }
@@ -104,6 +111,8 @@ pub enum PaymentError {
     TxDeserialize(TxDeserializeError),
     InvalidOutputs,
     InvalidTx,
+    MismatchedNetwork,
+    AddrFetchFailed,
 }
 
 impl From<PaymentError> for ServerError {
@@ -134,6 +143,8 @@ impl fmt::Display for PaymentError {
             PaymentError::TxDeserialize(_) => "payment tx malformed",
             PaymentError::InvalidOutputs => "invalid outputs",
             PaymentError::InvalidTx => "invalid tx",
+            PaymentError::AddrFetchFailed => "failed to fetch address",
+            PaymentError::MismatchedNetwork => "address mismatched with node network",
         };
         write!(f, "{}", printable)
     }
@@ -155,6 +166,8 @@ impl error::ResponseError for PaymentError {
             PaymentError::TxDeserialize(_) => HttpResponse::BadRequest(),
             PaymentError::InvalidOutputs => HttpResponse::BadRequest(),
             PaymentError::InvalidTx => HttpResponse::BadRequest(),
+            PaymentError::MismatchedNetwork => HttpResponse::BadRequest(),
+            PaymentError::AddrFetchFailed => HttpResponse::InternalServerError(),
         }
         .body(self.to_string())
     }
