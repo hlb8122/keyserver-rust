@@ -91,7 +91,7 @@ impl error::ResponseError for ServerError {
             ServerError::MetadataDecode => HttpResponse::BadRequest().body("invalid metadata"),
             ServerError::Crypto(err) => err.error_response(),
             ServerError::Payment(err) => err.error_response(),
-            _ => HttpResponse::InternalServerError().finish(),
+            ServerError::Address(err) => HttpResponse::BadRequest().body(err.to_string())
         }
     }
 }
