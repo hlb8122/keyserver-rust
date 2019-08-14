@@ -1,28 +1,32 @@
-import requests
 import bitcoin
-from decimal import Decimal
 import os
+import requests
+from addressmetadata_pb2 import *
+from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 from bitcoin.core.key import CECKey
 from bitcoin.wallet import P2PKHBitcoinAddress
 from bitcoin.core import CMutableTransaction, CMutableTxIn
-from addressmetadata_pb2 import *
-from paymentrequest_pb2 import *
-from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
-from time import time
+from decimal import Decimal
 from hashlib import sha256
+from paymentrequest_pb2 import *
+from time import time
+
 
 # Generate protobuf code
-# protoc -I=./src/proto --python_out=./example ./src/proto/*.proto
+# protoc -I=../src/proto --python_out=. ../src/proto/*.proto
 
 # Run bitcoind in regtest mode
 # bitcoind -daemon -regtest -zmqpubrawtx=tcp://127.0.0.1:28332 -rpcallowip=0.0.0.0/0 -server  \
 # -rpcuser=username -rpcpassword=password -rpcport=18332
 # bitcoin-cli -regtest -rpcuser=username -rpcpassword=password generate 101
 
+# Run the keyserver
+# cargo run
+
 BASE_URL = "http://0.0.0.0:8080"
 bitcoin.SelectParams("regtest")
 
-# Init bitcoin RPC
+# Init Bitcoin RPC
 rpc_user = "username"
 rpc_password = "password"
 rpc_connection = AuthServiceProxy(
@@ -40,16 +44,17 @@ key_addr = str(P2PKHBitcoinAddress.from_pubkey(public_key))
 
 # Put key without payment
 response = requests.put(url=BASE_URL + "/keys/" + key_addr)
-assert(response.status_code == 402) # Payment required
+assert(response.status_code == 402)  # Payment required
 
-# Construct payment
+# Deserialize invoice
 payment_request = PaymentRequest.FromString(response.content)
 payment_details_raw = payment_request.serialized_payment_details
 payment_details = PaymentDetails.FromString(payment_details_raw)
 
-# Create inputs
-# Convert Satoshi to Bitcoin
+# Payment amount
 price = Decimal(payment_details.outputs[0].amount) / 1_00_000_000
+
+# Collect inputs
 fee = Decimal(5) / 10_000_000
 utxos = rpc_connection.listunspent()
 inputs = []
@@ -89,16 +94,18 @@ payment = Payment(merchant_data=payment_details.merchant_data,
 payment_raw = payment.SerializeToString()
 
 # Send payment
-payment_url = BASE_URL + payment_details.payment_url
+payment_url = BASE_URL + payment_details.payment_url  # TODO: Full payment URL?
 headers = {
-    "accept": "application/bitcoin-payment",
-    "content-type": "application/bitcoin-paymentack"
+    "Accept": "application/bitcoin-payment",
+    "Content-Type": "application/bitcoin-paymentack"
 }
 response = requests.post(url=payment_url, data=payment_raw,
                          headers=headers, allow_redirects=False)
 payment_ack = PaymentACK.FromString(response.content)
 print("PaymentACK memo:", payment_ack.memo)
-token_url = response.headers["Location"]
+
+# Token URL for PUT
+token_url = response.headers["Location"]  # {key URL}?code={payment token}
 
 # Construct Payload
 header = Header(Name="Something wicked", Value="this way comes")
