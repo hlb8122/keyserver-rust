@@ -254,6 +254,7 @@ where
                         (Some(scheme), Some(authority)) => {
                             format!("{}://{}{}", scheme, authority, uri.path())
                         }
+                        (None, None) => format!("http://{}{}", SETTINGS.bind, uri.path()),
                         (_, _) => {
                             return Box::new(err(
                                 ServerError::Payment(PaymentError::URIMalformed).into()
@@ -320,13 +321,14 @@ where
         let uri = req.uri();
         let url = match (uri.scheme_str(), uri.authority_part()) {
             (Some(scheme), Some(authority)) => format!("{}://{}{}", scheme, authority, uri.path()),
+            (None, None) => format!("http://{}{}", SETTINGS.bind, uri.path()),
             (_, _) => {
                 return Box::new(ok(req.into_response(
                     ServerError::Payment(PaymentError::URIMalformed).error_response(),
                 )))
             }
         };
-        if !validate_token(url.as_bytes(), &token, SETTINGS.secret.as_bytes()) {
+        if !validate_token(url.as_bytes(), SETTINGS.secret.as_bytes(), &token) {
             Box::new(ok(req.into_response(
                 ServerError::Payment(PaymentError::InvalidAuth).error_response(),
             )))

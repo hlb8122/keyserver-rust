@@ -5,7 +5,7 @@ pub mod token;
 
 use errors::CryptoError;
 
-use bitcoin_hashes::{ripemd160::Hash as Ripemd160, Hash};
+use bitcoin_hashes::{hash160::Hash as Hash160, Hash};
 pub use bitcoincash_addr::*;
 
 pub trait PublicKey
@@ -36,6 +36,6 @@ pub trait Addressable {
 
 impl<P: PublicKey> Addressable for P {
     fn to_raw_address(&self) -> Vec<u8> {
-        Ripemd160::hash(&self.serialize()).to_vec()
+        Hash160::hash(&self.serialize()).to_vec()
     }
 }

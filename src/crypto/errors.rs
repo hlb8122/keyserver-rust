@@ -2,19 +2,17 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum CryptoError {
-    Deserialization,
+    PubkeyDeserialization,
+    SigDeserialization,
     Verification,
-    Decoding,
-    Encoding,
 }
 
 impl fmt::Display for CryptoError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let printable = match *self {
-            CryptoError::Deserialization => "invalid address",
+            CryptoError::PubkeyDeserialization => "invalid pubkey",
+            CryptoError::SigDeserialization => "invalid signature",
             CryptoError::Verification => "verification failed",
-            CryptoError::Decoding => "address decoding failed",
-            CryptoError::Encoding => "address encoding failed",
         };
         write!(f, "{}", printable)
     }

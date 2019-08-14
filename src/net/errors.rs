@@ -61,9 +61,8 @@ impl From<RocksError> for ServerError {
 impl error::ResponseError for CryptoError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            CryptoError::Deserialization => HttpResponse::BadRequest(),
-            CryptoError::Decoding => HttpResponse::BadRequest(),
-            CryptoError::Encoding => HttpResponse::InternalServerError(),
+            CryptoError::PubkeyDeserialization => HttpResponse::BadRequest(),
+            CryptoError::SigDeserialization => HttpResponse::BadRequest(),
             CryptoError::Verification => HttpResponse::BadRequest(),
         }
         .body(self.to_string())
@@ -91,7 +90,7 @@ impl error::ResponseError for ServerError {
             ServerError::MetadataDecode => HttpResponse::BadRequest().body("invalid metadata"),
             ServerError::Crypto(err) => err.error_response(),
             ServerError::Payment(err) => err.error_response(),
-            ServerError::Address(err) => HttpResponse::BadRequest().body(err.to_string())
+            ServerError::Address(err) => HttpResponse::BadRequest().body(err.to_string()),
         }
     }
 }

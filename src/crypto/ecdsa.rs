@@ -4,13 +4,13 @@ pub struct Secp256k1PublicKey(pub secp256k1::PublicKey);
 
 impl PublicKey for Secp256k1PublicKey {
     fn serialize(&self) -> Vec<u8> {
-        self.0.serialize().to_vec()
+        self.0.serialize_uncompressed().to_vec()
     }
 
     fn deserialize(raw: &[u8]) -> Result<Self, CryptoError> {
         secp256k1::PublicKey::from_slice(raw)
             .map(Secp256k1PublicKey)
-            .map_err(|_| CryptoError::Deserialization)
+            .map_err(|_| CryptoError::PubkeyDeserialization)
     }
 }
 
@@ -18,9 +18,9 @@ pub struct Secp256k1Sig(pub secp256k1::Signature);
 
 impl Signature for Secp256k1Sig {
     fn deserialize(raw: &[u8]) -> Result<Self, CryptoError> {
-        secp256k1::Signature::from_der(raw)
+        secp256k1::Signature::from_compact(raw)
             .map(Secp256k1Sig)
-            .map_err(|_| CryptoError::Deserialization)
+            .map_err(|_| CryptoError::SigDeserialization)
     }
 }
 
