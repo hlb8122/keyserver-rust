@@ -63,13 +63,13 @@ impl Settings {
         }
 
         // Set rpc username from cmd line
-        if let Some(node_rpc_username) = matches.value_of("rpc-username") {
-            s.set("rpc_username", node_rpc_username)?;
+        if let Some(rpc_username) = matches.value_of("rpc-username") {
+            s.set("rpc_username", rpc_username)?;
         }
 
         // Set rpc password from cmd line
-        if let Some(node_rpc_password) = matches.value_of("rpc-password") {
-            s.set("rpc_password", node_rpc_password)?;
+        if let Some(rpc_password) = matches.value_of("rpc-password") {
+            s.set("rpc_password", rpc_password)?;
         }
 
         // Set zmq port from cmd line

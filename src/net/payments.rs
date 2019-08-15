@@ -36,7 +36,7 @@ use super::errors::*;
 use crate::crypto::token::*;
 
 const PAYMENT_URL: &str = "/payments";
-pub const VALID_DURATION: u64 = 3;
+pub const VALID_DURATION: u64 = 30;
 
 #[derive(Deserialize)]
 pub struct TokenQuery {
@@ -372,11 +372,7 @@ mod tests {
 
     fn generate_raw_tx(recv_addr: Vec<u8>, _data: Vec<u8>) -> Vec<u8> {
         let client = JsonClient::new(
-            format!(
-                "http://{}:{}",
-                SETTINGS.node_ip.clone(),
-                SETTINGS.rpc_port
-            ),
+            format!("http://{}:{}", SETTINGS.node_ip.clone(), SETTINGS.rpc_port),
             SETTINGS.rpc_username.clone(),
             SETTINGS.rpc_password.clone(),
         );
@@ -440,11 +436,7 @@ mod tests {
 
         // Init Bitcoin client
         let bitcoin_client = BitcoinClient::new(
-            format!(
-                "http://{}:{}",
-                SETTINGS.node_ip.clone(),
-                SETTINGS.rpc_port
-            ),
+            format!("http://{}:{}", SETTINGS.node_ip.clone(), SETTINGS.rpc_port),
             SETTINGS.rpc_username.clone(),
             SETTINGS.rpc_password.clone(),
         );
@@ -502,11 +494,7 @@ mod tests {
 
         // Init Bitcoin client
         let bitcoin_client = BitcoinClient::new(
-            format!(
-                "http://{}:{}",
-                SETTINGS.node_ip.clone(),
-                SETTINGS.rpc_port
-            ),
+            format!("http://{}:{}", SETTINGS.node_ip.clone(), SETTINGS.rpc_port),
             SETTINGS.rpc_username.clone(),
             SETTINGS.rpc_password.clone(),
         );
@@ -537,7 +525,7 @@ mod tests {
         let key_url = &format!("http://localhost:8080/keys/{}", address_base58);
         let req = test::TestRequest::put()
             .uri(key_url)
-            .set_payload(metadata_raw)
+            .set_payload(metadata_raw.clone())
             .to_request();
         let mut resp = test::call_service(&mut app, req);
 
@@ -607,17 +595,11 @@ mod tests {
 
         // TODO: More detail here
         // Check token works with code
-        let req = test::TestRequest::put().uri(loc.as_str()).to_request();
-        let resp = test::call_service(&mut app, req);
-        assert_eq!(resp.status(), StatusCode::PAYMENT_REQUIRED);
-
-        // TODO: More detail here
-        // Check token works with POP token
         let req = test::TestRequest::put()
             .uri(loc.as_str())
-            .header(AUTHORIZATION, auth.to_str().unwrap())
+            .set_payload(metadata_raw)
             .to_request();
         let resp = test::call_service(&mut app, req);
-        assert_eq!(resp.status(), StatusCode::PAYMENT_REQUIRED);
+        assert_eq!(resp.status(), StatusCode::OK);
     }
 }

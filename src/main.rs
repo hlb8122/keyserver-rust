@@ -45,20 +45,14 @@ fn main() -> io::Result<()> {
 
     // Init Bitcoin client
     let bitcoin_client = BitcoinClient::new(
-        format!(
-            "http://{}:{}",
-            SETTINGS.node_ip.clone(),
-            SETTINGS.rpc_port
-        ),
+        format!("http://{}:{}", SETTINGS.node_ip.clone(), SETTINGS.rpc_port),
         SETTINGS.rpc_username.clone(),
         SETTINGS.rpc_password.clone(),
     );
 
     // Init ZMQ
-    let (tx_stream, connection) = tx_stream::get_tx_stream(&format!(
-        "tcp://{}:{}",
-        SETTINGS.node_ip, SETTINGS.zmq_port
-    ));
+    let (tx_stream, connection) =
+        tx_stream::get_tx_stream(&format!("tcp://{}:{}", SETTINGS.node_ip, SETTINGS.zmq_port));
     let key_stream = tx_stream::extract_details(tx_stream);
     actix_rt::Arbiter::current().send(connection.map_err(|e| error!("{:?}", e)));
 

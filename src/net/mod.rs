@@ -133,7 +133,7 @@ mod tests {
         let metadata = AddressMetadata {
             pub_key: pubkey_raw,
             payload: Some(payload),
-            signature: signature.serialize_der(),
+            signature: signature.serialize_compact().to_vec(),
             r#type: 0,
         };
         let mut metadata_raw = Vec::with_capacity(metadata.encoded_len());
