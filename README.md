@@ -22,7 +22,7 @@ Bitcoin must be run with [RPC](https://bitcoin.org/en/developer-reference#remote
 Install [Rust](https://www.rust-lang.org/tools/install) then
 
 ```bash
-sudo apt install -y pkg-config libzmq3-dev
+sudo apt install -y pkg-config libssl-dev libzmq3-dev
 cargo build --release
 ```
 
@@ -42,7 +42,7 @@ Settings may be given by `JSON`, `TOML`, `YAML`, `HJSON` and `INI` files and, by
 | zmq_port | Bitcoin ZMQ port |
 | secret | Keyserver secret |
 | db_path | Database path |
-| network | Bitcoin network* |
+| network | Bitcoin network |
 
 The `network` parameter must be either `Mainnet`, `Testnet` or `Regnet`.
 
