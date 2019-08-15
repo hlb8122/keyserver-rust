@@ -36,7 +36,7 @@ use super::errors::*;
 use crate::crypto::token::*;
 
 const PAYMENT_URL: &str = "/payments";
-const VALID_DURATION: u64 = 30;
+pub const VALID_DURATION: u64 = 3;
 
 #[derive(Deserialize)]
 pub struct TokenQuery {

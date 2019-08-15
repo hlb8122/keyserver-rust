@@ -14,6 +14,7 @@ pub enum ServerError {
     Validation(ValidationError),
     Crypto(CryptoError),
     NotFound,
+    Older,
     MetadataDecode,
     Payment(PaymentError),
     Address(AddressError),
@@ -25,6 +26,7 @@ impl fmt::Display for ServerError {
             ServerError::DB(err) => return err.fmt(f),
             ServerError::Crypto(err) => return err.fmt(f),
             ServerError::NotFound => "not found",
+            ServerError::Older => "timestamp older than current",
             ServerError::MetadataDecode => "metadata decoding error",
             ServerError::Payment(err) => return err.fmt(f),
             ServerError::Validation(err) => return err.fmt(f),
@@ -85,9 +87,11 @@ impl error::ResponseError for ServerError {
     fn error_response(&self) -> HttpResponse {
         match self {
             ServerError::Validation(err) => err.error_response(),
+            // Do not yield sensitive information to clients
             ServerError::DB(_) => HttpResponse::InternalServerError().body("internal db error"),
-            ServerError::NotFound => HttpResponse::NotFound().body("missing key address"),
-            ServerError::MetadataDecode => HttpResponse::BadRequest().body("invalid metadata"),
+            ServerError::NotFound => HttpResponse::NotFound().body(self.to_string()),
+            ServerError::Older => HttpResponse::BadRequest().body(self.to_string()),
+            ServerError::MetadataDecode => HttpResponse::BadRequest().body(self.to_string()),
             ServerError::Crypto(err) => err.error_response(),
             ServerError::Payment(err) => err.error_response(),
             ServerError::Address(err) => HttpResponse::BadRequest().body(err.to_string()),

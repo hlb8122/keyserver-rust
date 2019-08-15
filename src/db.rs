@@ -38,9 +38,9 @@ impl KeyDB {
                     Ok(new_payload.timestamp > old_payload.timestamp)
                 }
                 (_, None) => Ok(true),
-                (None, Some(_)) => Ok(false),
+                (None, Some(_)) => Ok(true),
             },
-            None => Ok(false),
+            None => Ok(true),
         }
     }
 }

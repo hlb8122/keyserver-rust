@@ -28,7 +28,7 @@ impl Settings {
             Some(some) => some,
             None => return Err(ConfigError::Message("no home directory".to_string())),
         };
-        s.set_default("bind", "0.0.0.0:8080").unwrap();
+        s.set_default("bind", "127.0.0.1:8080").unwrap();
         s.set_default("node_ip", "127.0.0.1").unwrap();
         s.set_default("node_rpc_port", "18332").unwrap();
         s.set_default("node_username", "username").unwrap();

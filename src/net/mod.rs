@@ -16,17 +16,15 @@ use crate::{
 
 use errors::ServerError;
 
-pub struct DBState(pub KeyDB);
-
 pub fn get_key(
     addr_str: web::Path<String>,
-    db_data: web::Data<DBState>,
+    db_data: web::Data<KeyDB>,
 ) -> Result<HttpResponse, ServerError> {
     // Convert address
     let addr = Address::decode(&addr_str)?;
 
     // Grab metadata from DB
-    let metadata = db_data.0.get(&addr)?.ok_or(ServerError::NotFound)?;
+    let metadata = db_data.get(&addr)?.ok_or(ServerError::NotFound)?;
 
     // Encode metadata as hex
     let mut raw_payload = Vec::with_capacity(metadata.encoded_len());
@@ -39,7 +37,7 @@ pub fn get_key(
 pub fn put_key(
     addr_str: web::Path<String>,
     payload: web::Payload,
-    db_data: web::Data<DBState>,
+    db_data: web::Data<KeyDB>,
 ) -> Box<Future<Item = HttpResponse, Error = ServerError>> {
     // Decode metadata
     let body_raw = payload.map_err(|_| ServerError::MetadataDecode).fold(
@@ -59,8 +57,13 @@ pub fn put_key(
 
         validate::<Secp256k1>(&addr, &metadata).map_err(ServerError::Validation)?;
 
+        // Check age
+        if !db_data.is_recent(&addr, &metadata)? {
+            return Err(ServerError::Older);
+        }
+
         // Put to database
-        db_data.0.put(&addr, &metadata)?;
+        db_data.put(&addr, &metadata)?;
 
         // Respond
         Ok(HttpResponse::Ok().finish())

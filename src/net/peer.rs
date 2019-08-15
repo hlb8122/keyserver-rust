@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use bitcoin_hashes::{hash160, Hash};
 use bytes::BytesMut;
@@ -14,6 +17,7 @@ use crate::{
     crypto::{authentication::validate, ecdsa::Secp256k1, Address},
     db::KeyDB,
     models::AddressMetadata,
+    payments::VALID_DURATION,
 };
 
 use crate::bitcoin::tx_stream::StreamError;
@@ -73,7 +77,7 @@ impl PeerClient {
                         },
                     )
                 })
-                .and_then(|body| Message::decode(body).map_err(|_| PeerError::Decode)), // Decode protobuf message
+                .and_then(|body| AddressMetadata::decode(body).map_err(|_| PeerError::Decode)),
         )
     }
 
@@ -96,8 +100,13 @@ impl PeerClient {
                 // Get metadata from peer
                 let metadata_fut = client.get_metadata(&peer_addr, &bitcoin_addr_str);
 
+                // Waiting period
+                let delay =
+                    tokio_timer::Delay::new(Instant::now() + Duration::from_secs(VALID_DURATION));
+                let delayed_meta_fut = delay.then(|_| metadata_fut);
+
                 let key_db_inner = key_db.clone();
-                Either::B(metadata_fut.then(move |metadata| {
+                Either::B(delayed_meta_fut.then(move |metadata| {
                     let metadata = match metadata {
                         Ok(ok) => ok,
                         Err(e) => {
@@ -120,7 +129,19 @@ impl PeerClient {
                         return future::ok(());
                     }
 
-                    if let Err(e) = key_db_inner.clone().put(&bitcoin_addr, &metadata) {
+                    match key_db_inner.is_recent(&bitcoin_addr, &metadata) {
+                        Ok(false) => {
+                            error!("refusing to pull older metadata");
+                            return future::ok(());
+                        }
+                        Err(_) => {
+                            error!("failed to check timestamp");
+                            return future::ok(());
+                        }
+                        _ => (),
+                    }
+
+                    if let Err(e) = key_db_inner.put(&bitcoin_addr, &metadata) {
                         error!("failed to put peer metadata {}", e);
                     };
                     future::ok(())

@@ -82,7 +82,7 @@ fn main() -> io::Result<()> {
                 // Key scope
                 web::scope("/keys").service(
                     web::resource("/{addr}")
-                        .data(DBState(key_db_inner))
+                        .data(key_db_inner)
                         .wrap(CheckPayment::new(
                             bitcoin_client_inner.clone(),
                             wallet_state_inner.clone(),

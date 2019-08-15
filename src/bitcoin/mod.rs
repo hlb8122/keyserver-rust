@@ -95,24 +95,42 @@ impl WalletState {
 }
 
 pub fn extract_op_return(script: &[u8]) -> Option<(String, Address, Vec<u8>)> {
+    // OP_RETURN || LEN || keyserver || bitcoin pk hash || metadata digest || peer host
+    if script.len() <= 2 + 9 + 20 + 20 {
+        // Too short
+        return None;
+    }
+
     if script[0] != 106 {
         // Not op_return
         return None;
     }
 
-    // OP_RETURN || keyserver || bitcoin pk hash || metadata digest || peer host
-    if script.len() <= 1 + 9 + 20 + 20 {
-        // Too short
+    if script[1] as usize != script.len() - 2 {
+        // Not length
         return None;
     }
 
-    if &script[1..10] != KEYSERVER_PREFIX {
+    if &script[2..11] != KEYSERVER_PREFIX {
         // Not keyserver op_return
         return None;
     }
 
+    // Parse host
+    let raw_host = &script[51..];
+    let host = match std::str::from_utf8(raw_host) {
+        Ok(ok) => ok.to_string(),
+        Err(_) => return None,
+    };
+
+    // Don't get from ourselves
+    // TODO: This is super crude
+    if host == SETTINGS.bind {
+        return None;
+    }
+
     // Parse bitcoin address
-    let bitcoin_addr_raw = script[10..30].to_vec();
+    let bitcoin_addr_raw = script[11..31].to_vec();
     let bitcoin_addr = Address {
         body: bitcoin_addr_raw,
         network: SETTINGS.network.clone().into(),
@@ -120,14 +138,7 @@ pub fn extract_op_return(script: &[u8]) -> Option<(String, Address, Vec<u8>)> {
     };
 
     // Parse metaaddress digest
-    let meta_digest = script[30..50].to_vec();
-
-    // Parse host
-    let raw_host = &script[50..];
-    let host = match std::str::from_utf8(raw_host) {
-        Ok(ok) => ok.to_string(),
-        Err(_) => return None,
-    };
+    let meta_digest = script[31..51].to_vec();
 
     Some((host, bitcoin_addr, meta_digest))
 }
