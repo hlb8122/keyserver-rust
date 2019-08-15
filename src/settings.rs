@@ -8,10 +8,10 @@ use crate::bitcoin::Network;
 pub struct Settings {
     pub bind: String,
     pub node_ip: String,
-    pub node_rpc_port: u16,
-    pub node_username: String,
-    pub node_password: String,
-    pub node_zmq_port: u16,
+    pub rpc_port: u16,
+    pub rpc_username: String,
+    pub rpc_password: String,
+    pub zmq_port: u16,
     pub secret: String,
     pub db_path: String,
     pub network: Network,
@@ -30,10 +30,10 @@ impl Settings {
         };
         s.set_default("bind", "127.0.0.1:8080").unwrap();
         s.set_default("node_ip", "127.0.0.1").unwrap();
-        s.set_default("node_rpc_port", "18332").unwrap();
-        s.set_default("node_username", "username").unwrap();
-        s.set_default("node_password", "password").unwrap();
-        s.set_default("node_zmq_port", "28332").unwrap();
+        s.set_default("rpc_port", "18332").unwrap();
+        s.set_default("rpc_username", "username").unwrap();
+        s.set_default("rpc_password", "password").unwrap();
+        s.set_default("zmq_port", "28332").unwrap();
         s.set_default("secret", "b").unwrap();
         let mut default_db = home_dir.clone();
         default_db.push(".keyserver-rust/db");
@@ -54,27 +54,27 @@ impl Settings {
 
         // Set node IP from cmd line
         if let Some(node_ip) = matches.value_of("node-ip") {
-            s.set("node-ip", node_ip)?;
+            s.set("node_ip", node_ip)?;
         }
 
         // Set rpc port from cmd line
-        if let Ok(node_rpc_port) = value_t!(matches, "rpc-port", i64) {
-            s.set("node_rpc_port", node_rpc_port)?;
+        if let Ok(rpc_port) = value_t!(matches, "rpc-port", i64) {
+            s.set("rpc_port", rpc_port)?;
         }
 
         // Set rpc username from cmd line
         if let Some(node_rpc_username) = matches.value_of("rpc-username") {
-            s.set("rpc-username", node_rpc_username)?;
+            s.set("rpc_username", node_rpc_username)?;
         }
 
         // Set rpc password from cmd line
         if let Some(node_rpc_password) = matches.value_of("rpc-password") {
-            s.set("rpc-password", node_rpc_password)?;
+            s.set("rpc_password", node_rpc_password)?;
         }
 
         // Set zmq port from cmd line
         if let Ok(node_zmq_port) = value_t!(matches, "zmq-port", i64) {
-            s.set("node_zmq_port", node_zmq_port)?;
+            s.set("zmq_port", node_zmq_port)?;
         }
 
         // Set secret from cmd line

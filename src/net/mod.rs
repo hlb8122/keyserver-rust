@@ -148,7 +148,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/put_ok").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(DBState(key_db))
+                .data(key_db)
                 .route("/keys/{addr}", web::put().to(put_key)),
         );
 
@@ -168,7 +168,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/put_malformed").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(DBState(key_db))
+                .data(key_db)
                 .route("/keys/{addr}", web::put().to(put_key)),
         );
 
@@ -188,7 +188,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/put_invalid_addr").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(DBState(key_db))
+                .data(key_db)
                 .route("/keys/{addr}", web::put().to(put_key)),
         );
 
@@ -208,7 +208,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/get_invalid_addr").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(DBState(key_db))
+                .data(key_db)
                 .route("/keys/{addr}", web::get().to(get_key)),
         );
 
@@ -225,7 +225,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/get_not_found").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(DBState(key_db))
+                .data(key_db)
                 .route("/keys/{addr}", web::get().to(get_key)),
         );
 
@@ -244,7 +244,7 @@ mod tests {
         let key_db = KeyDB::try_new("./test_db/put_get").unwrap();
         let mut app = test::init_service(
             App::new()
-                .data(DBState(key_db))
+                .data(key_db)
                 .route("/keys/{addr}", web::get().to(get_key))
                 .route("/keys/{addr}", web::put().to(put_key)),
         );

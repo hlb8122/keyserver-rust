@@ -375,10 +375,10 @@ mod tests {
             format!(
                 "http://{}:{}",
                 SETTINGS.node_ip.clone(),
-                SETTINGS.node_rpc_port
+                SETTINGS.rpc_port
             ),
-            SETTINGS.node_username.clone(),
-            SETTINGS.node_password.clone(),
+            SETTINGS.rpc_username.clone(),
+            SETTINGS.rpc_password.clone(),
         );
 
         // Get unspent output
@@ -443,16 +443,16 @@ mod tests {
             format!(
                 "http://{}:{}",
                 SETTINGS.node_ip.clone(),
-                SETTINGS.node_rpc_port
+                SETTINGS.rpc_port
             ),
-            SETTINGS.node_username.clone(),
-            SETTINGS.node_password.clone(),
+            SETTINGS.rpc_username.clone(),
+            SETTINGS.rpc_password.clone(),
         );
 
         // Init testing app
         let mut app = test::init_service(
             App::new()
-                .data(DBState(key_db))
+                .data(key_db)
                 .wrap(CheckPayment::new(bitcoin_client, wallet_state)) // Apply payment check to put key
                 .route("/keys/{addr}", web::put().to(put_key)),
         );
@@ -505,10 +505,10 @@ mod tests {
             format!(
                 "http://{}:{}",
                 SETTINGS.node_ip.clone(),
-                SETTINGS.node_rpc_port
+                SETTINGS.rpc_port
             ),
-            SETTINGS.node_username.clone(),
-            SETTINGS.node_password.clone(),
+            SETTINGS.rpc_username.clone(),
+            SETTINGS.rpc_password.clone(),
         );
 
         // Init testing app
@@ -517,7 +517,7 @@ mod tests {
                 .service(
                     web::scope("/keys").service(
                         web::resource("/{addr}")
-                            .data(DBState(key_db))
+                            .data(key_db)
                             .wrap(CheckPayment::new(
                                 bitcoin_client.clone(),
                                 wallet_state.clone(),
