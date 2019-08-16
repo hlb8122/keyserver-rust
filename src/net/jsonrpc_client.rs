@@ -58,7 +58,7 @@ impl JsonClient {
     pub fn send_request(
         &self,
         request: &Request,
-    ) -> Box<Future<Item = Response, Error = ClientError> + Send> {
+    ) -> Box<dyn Future<Item = Response, Error = ClientError> + Send> {
         let mut request_builder = self.client.post(&self.endpoint);
 
         request_builder =

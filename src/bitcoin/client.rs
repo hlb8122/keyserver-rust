@@ -13,7 +13,7 @@ impl BitcoinClient {
         BitcoinClient(Arc::new(JsonClient::new(endpoint, username, password)))
     }
 
-    pub fn get_new_addr(&mut self) -> Box<Future<Item = String, Error = ClientError> + Send> {
+    pub fn get_new_addr(&mut self) -> Box<dyn Future<Item = String, Error = ClientError> + Send> {
         let request = self.0.build_request("getnewaddress".to_string(), vec![]);
         Box::new(
             self.0
@@ -22,7 +22,7 @@ impl BitcoinClient {
         )
     }
 
-    pub fn send_tx(&self, raw_tx: &[u8]) -> Box<Future<Item = String, Error = ClientError> + Send> {
+    pub fn send_tx(&self, raw_tx: &[u8]) -> Box<dyn Future<Item = String, Error = ClientError> + Send> {
         let request = self.0.build_request(
             "sendrawtransaction".to_string(),
             vec![Value::String(hex::encode(raw_tx))],

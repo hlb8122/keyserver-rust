@@ -38,7 +38,7 @@ pub fn put_key(
     addr_str: web::Path<String>,
     payload: web::Payload,
     db_data: web::Data<KeyDB>,
-) -> Box<Future<Item = HttpResponse, Error = ServerError>> {
+) -> Box<dyn Future<Item = HttpResponse, Error = ServerError>> {
     // Decode metadata
     let body_raw = payload.map_err(|_| ServerError::MetadataDecode).fold(
         BytesMut::new(),

@@ -48,7 +48,7 @@ pub fn payment_handler(
     req: HttpRequest,
     payload: web::Payload,
     data: web::Data<(BitcoinClient, WalletState)>,
-) -> Box<Future<Item = HttpResponse, Error = ServerError>> {
+) -> Box<dyn Future<Item = HttpResponse, Error = ServerError>> {
     // Check headers
     let headers = req.headers();
     if headers.get(ACCEPT) != Some(&HeaderValue::from_str("application/bitcoin-payment").unwrap()) {
