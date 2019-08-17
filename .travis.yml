@@ -17,6 +17,7 @@ jobs:
     script:
     - cargo test bitcoin
     - cargo test crypto
+    - cargo test db
   - stage: regtest
     script:
     - sudo add-apt-repository -y ppa:bitcoin-abc/ppa
