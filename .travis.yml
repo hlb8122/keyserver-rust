@@ -23,7 +23,7 @@ jobs:
     - sudo apt-get update
     - sudo apt install -y libzmq3-dev
     - sudo apt install -y bitcoind
-    - bitcoind -daemon -regtest -zmqpubrawtx=tcp://127.0.0.1:28332 -rpcallowip=0.0.0.0/0 -server -rpcuser=username -rpcpassword=password -rpcport=18332
+    - bitcoind -daemon -regtest -zmqpubrawtx=tcp://127.0.0.1:28332 -rpcallowip=0.0.0.0/0 -server -rpcuser=username -rpcpassword=password
     - sleep 30
     - bitcoin-cli -regtest -rpcuser=username -rpcpassword=password generate 101
     - cargo test

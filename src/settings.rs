@@ -30,7 +30,7 @@ impl Settings {
         };
         s.set_default("bind", "127.0.0.1:8080").unwrap();
         s.set_default("node_ip", "127.0.0.1").unwrap();
-        s.set_default("rpc_port", "18332").unwrap();
+        s.set_default("rpc_port", "18443").unwrap();
         s.set_default("rpc_username", "username").unwrap();
         s.set_default("rpc_password", "password").unwrap();
         s.set_default("zmq_port", "28332").unwrap();

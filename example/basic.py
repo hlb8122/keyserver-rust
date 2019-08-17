@@ -17,7 +17,7 @@ from time import time
 
 # Run bitcoind in regtest mode
 # bitcoind -daemon -regtest -zmqpubrawtx=tcp://127.0.0.1:28332 -rpcallowip=0.0.0.0/0 -server  \
-# -rpcuser=username -rpcpassword=password -rpcport=18332
+# -rpcuser=username -rpcpassword=password
 # bitcoin-cli -regtest -rpcuser=username -rpcpassword=password generate 101
 
 # Run the keyserver
@@ -30,7 +30,7 @@ bitcoin.SelectParams("regtest")
 rpc_user = "username"
 rpc_password = "password"
 rpc_connection = AuthServiceProxy(
-    "http://%s:%s@127.0.0.1:18332" % (rpc_user, rpc_password))
+    "http://%s:%s@127.0.0.1:18443" % (rpc_user, rpc_password))
 
 # Generate keys
 secret = os.urandom(16)
