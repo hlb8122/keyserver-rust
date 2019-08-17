@@ -58,9 +58,7 @@ pub fn put_key(
         validate::<Secp256k1>(&addr, &metadata).map_err(ServerError::Validation)?;
 
         // Check age
-        if !db_data.is_recent(&addr, &metadata)? {
-            return Err(ServerError::Older);
-        }
+        db_data.check_timestamp(&addr, &metadata)??;
 
         // Put to database
         db_data.put(&addr, &metadata)?;
@@ -118,7 +116,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs() as i64;
-        let payload = Payload { timestamp, rows };
+        let ttl = 3000;
+        let payload = Payload { timestamp, rows, ttl };
 
         // Construct signature
         let mut raw_payload = Vec::with_capacity(payload.encoded_len());

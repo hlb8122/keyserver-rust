@@ -1,5 +1,4 @@
-use crate::crypto::{errors::ValidationError, *};
-use crate::models::AddressMetadata;
+use crate::{crypto::*, models::AddressMetadata, net::errors::ValidationError};
 
 use bitcoin_hashes::{sha256, Hash};
 use prost::Message;

@@ -6,7 +6,37 @@ use bitcoincash_addr::AddressError;
 use prost::DecodeError;
 use rocksdb::Error as RocksError;
 
-use crate::crypto::errors::{CryptoError, ValidationError};
+use crate::crypto::errors::CryptoError;
+
+#[derive(Debug)]
+pub enum ValidationError {
+    KeyType,
+    Preimage,
+    EmptyPayload,
+    Outdated,
+    ExpiredTTL,
+    Crypto(CryptoError),
+}
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match self {
+            ValidationError::KeyType => "bad key type",
+            ValidationError::Preimage => "digest mismatch",
+            ValidationError::EmptyPayload => "empty payload",
+            ValidationError::Outdated => "metadata is outdated",
+            ValidationError::ExpiredTTL => "expired TTL",
+            ValidationError::Crypto(err) => return err.fmt(f),
+        };
+        write!(f, "{}", printable)
+    }
+}
+
+impl Into<ValidationError> for CryptoError {
+    fn into(self) -> ValidationError {
+        ValidationError::Crypto(self)
+    }
+}
 
 #[derive(Debug)]
 pub enum ServerError {
@@ -14,7 +44,6 @@ pub enum ServerError {
     Validation(ValidationError),
     Crypto(CryptoError),
     NotFound,
-    Older,
     MetadataDecode,
     Payment(PaymentError),
     Address(AddressError),
@@ -26,7 +55,6 @@ impl fmt::Display for ServerError {
             ServerError::DB(err) => return err.fmt(f),
             ServerError::Crypto(err) => return err.fmt(f),
             ServerError::NotFound => "not found",
-            ServerError::Older => "timestamp older than current",
             ServerError::MetadataDecode => "metadata decoding error",
             ServerError::Payment(err) => return err.fmt(f),
             ServerError::Validation(err) => return err.fmt(f),
@@ -60,6 +88,12 @@ impl From<RocksError> for ServerError {
     }
 }
 
+impl From<ValidationError> for ServerError {
+    fn from(err: ValidationError) -> ServerError {
+        ServerError::Validation(err)
+    }
+}
+
 impl error::ResponseError for CryptoError {
     fn error_response(&self) -> HttpResponse {
         match self {
@@ -78,6 +112,8 @@ impl error::ResponseError for ValidationError {
             ValidationError::EmptyPayload => HttpResponse::BadRequest(),
             ValidationError::KeyType => HttpResponse::BadRequest(),
             ValidationError::Preimage => HttpResponse::BadRequest(),
+            ValidationError::Outdated => HttpResponse::BadRequest(),
+            ValidationError::ExpiredTTL => HttpResponse::BadRequest(),
         }
         .body(self.to_string())
     }
@@ -90,7 +126,6 @@ impl error::ResponseError for ServerError {
             // Do not yield sensitive information to clients
             ServerError::DB(_) => HttpResponse::InternalServerError().body("internal db error"),
             ServerError::NotFound => HttpResponse::NotFound().body(self.to_string()),
-            ServerError::Older => HttpResponse::BadRequest().body(self.to_string()),
             ServerError::MetadataDecode => HttpResponse::BadRequest().body(self.to_string()),
             ServerError::Crypto(err) => err.error_response(),
             ServerError::Payment(err) => err.error_response(),

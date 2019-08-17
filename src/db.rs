@@ -1,9 +1,14 @@
+use std::{
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
 use crate::crypto::Address;
 use crate::models::AddressMetadata;
 use prost::Message;
 use rocksdb::{Error, DB};
 
-use std::sync::Arc;
+use crate::net::errors::ValidationError;
 
 #[derive(Clone)]
 pub struct KeyDB(Arc<DB>);
@@ -30,17 +35,33 @@ impl KeyDB {
             .map(|opt_dat| opt_dat.map(|dat| AddressMetadata::decode(&dat[..]).unwrap()))
     }
 
-    pub fn is_recent(&self, addr: &Address, metadata: &AddressMetadata) -> Result<bool, Error> {
-        let old_metadata_opt = self.get(addr)?;
-        match old_metadata_opt {
-            Some(old_metadata) => match (metadata.payload.as_ref(), old_metadata.payload) {
-                (Some(new_payload), Some(old_payload)) => {
-                    Ok(new_payload.timestamp > old_payload.timestamp)
+    pub fn check_timestamp(
+        &self,
+        addr: &Address,
+        metadata: &AddressMetadata,
+    ) -> Result<Result<(), ValidationError>, Error> {
+        if let Some(old_metadata) = self.get(addr)? {
+            if let (Some(new_payload), Some(old_payload)) =
+                (metadata.payload.as_ref(), old_metadata.payload)
+            {
+                if new_payload.timestamp < old_payload.timestamp {
+                    // Timestamp is outdated
+                    return Ok(Err(ValidationError::Outdated));
+                } // TODO: Check if = and use lexicographical
+
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64;
+                if new_payload.timestamp + new_payload.ttl < timestamp {
+                    // Proposed timestamp is in excess of TTL
+                    return Ok(Err(ValidationError::ExpiredTTL));
                 }
-                (_, None) => Ok(true),
-                (None, Some(_)) => Ok(true),
-            },
-            None => Ok(true),
+            } else {
+                // Payload is empty
+                return Ok(Err(ValidationError::EmptyPayload));
+            }
         }
+        Ok(Ok(()))
     }
 }

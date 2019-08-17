@@ -129,9 +129,9 @@ impl PeerClient {
                         return future::ok(());
                     }
 
-                    match key_db_inner.is_recent(&bitcoin_addr, &metadata) {
-                        Ok(false) => {
-                            error!("refusing to pull older metadata");
+                    match key_db_inner.check_timestamp(&bitcoin_addr, &metadata) {
+                        Ok(Err(_)) => {
+                            error!("refusing to pull outdated metadata");
                             return future::ok(());
                         }
                         Err(_) => {
