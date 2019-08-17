@@ -123,8 +123,8 @@ mod tests {
         let ttl = 3000;
         let payload = Payload {
             timestamp,
-            rows,
             ttl,
+            rows,
         };
 
         // Construct signature
