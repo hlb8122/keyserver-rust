@@ -55,7 +55,11 @@ pub fn put_key(
         // Convert address
         let addr = Address::decode(&addr_str)?;
 
-        validate::<Secp256k1>(&addr, &metadata).map_err(ServerError::Validation)?;
+        // TODO: Support Schnorr
+        match metadata.scheme {
+            1 => validate::<Secp256k1>(&addr, &metadata).map_err(ServerError::Validation)?,
+            _ => return Err(ServerError::UnsupportedSigScheme),
+        }
 
         // Check age
         db_data.check_timestamp(&addr, &metadata)??;
@@ -133,7 +137,7 @@ mod tests {
             pub_key: pubkey_raw,
             payload: Some(payload),
             signature: signature.serialize_compact().to_vec(),
-            r#type: 0,
+            scheme: 1,
         };
         let mut metadata_raw = Vec::with_capacity(metadata.encoded_len());
         metadata.encode(&mut metadata_raw).unwrap();

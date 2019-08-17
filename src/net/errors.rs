@@ -45,6 +45,7 @@ pub enum ServerError {
     Crypto(CryptoError),
     NotFound,
     MetadataDecode,
+    UnsupportedSigScheme,
     Payment(PaymentError),
     Address(AddressError),
 }
@@ -56,6 +57,7 @@ impl fmt::Display for ServerError {
             ServerError::Crypto(err) => return err.fmt(f),
             ServerError::NotFound => "not found",
             ServerError::MetadataDecode => "metadata decoding error",
+            ServerError::UnsupportedSigScheme => "signature scheme not supported",
             ServerError::Payment(err) => return err.fmt(f),
             ServerError::Validation(err) => return err.fmt(f),
             ServerError::Address(err) => return err.fmt(f),
@@ -127,6 +129,7 @@ impl error::ResponseError for ServerError {
             ServerError::DB(_) => HttpResponse::InternalServerError().body("internal db error"),
             ServerError::NotFound => HttpResponse::NotFound().body(self.to_string()),
             ServerError::MetadataDecode => HttpResponse::BadRequest().body(self.to_string()),
+            ServerError::UnsupportedSigScheme => HttpResponse::BadRequest().body(self.to_string()),
             ServerError::Crypto(err) => err.error_response(),
             ServerError::Payment(err) => err.error_response(),
             ServerError::Address(err) => HttpResponse::BadRequest().body(err.to_string()),
