@@ -121,7 +121,11 @@ mod tests {
             .unwrap()
             .as_secs() as i64;
         let ttl = 3000;
-        let payload = Payload { timestamp, rows, ttl };
+        let payload = Payload {
+            timestamp,
+            rows,
+            ttl,
+        };
 
         // Construct signature
         let mut raw_payload = Vec::with_capacity(payload.encoded_len());

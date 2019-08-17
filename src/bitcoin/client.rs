@@ -22,7 +22,10 @@ impl BitcoinClient {
         )
     }
 
-    pub fn send_tx(&self, raw_tx: &[u8]) -> Box<dyn Future<Item = String, Error = ClientError> + Send> {
+    pub fn send_tx(
+        &self,
+        raw_tx: &[u8],
+    ) -> Box<dyn Future<Item = String, Error = ClientError> + Send> {
         let request = self.0.build_request(
             "sendrawtransaction".to_string(),
             vec![Value::String(hex::encode(raw_tx))],
