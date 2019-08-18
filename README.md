@@ -48,6 +48,12 @@ The `network` parameter must be either `Mainnet`, `Testnet` or `Regnet`.
 
 Each of the parameters above can be overloaded via command line (replacing `_` with `-`). Additionaly, `config` can be passed via command line to specify a configuration file at a custom location.
 
+A full list of commandline arguments can be viewed via `keyserver --help`
+
 ### Running
 
-Simply run the executable produced from the build process above.
+```bash
+./target/release/keyserver [OPTIONS]
+```
+
+Alternatively, copy `./static/` folder and `keyserver` to a directory and run `keyserver` from there.
