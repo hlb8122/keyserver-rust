@@ -120,7 +120,7 @@ payment = Payment(merchant_data=payment_details.merchant_data,
 payment_raw = payment.SerializeToString()
 
 # Send payment
-payment_url = BASE_URL + payment_details.payment_url  # TODO: Full payment URL?
+payment_url = payment_details.payment_url
 headers = {
     "Content-Type": "application/bitcoincash-payment",
     "Accept": "application/bitcoincash-paymentack"
@@ -145,7 +145,7 @@ print(addr_metadata)
 
 # Wait for peering
 print("Waiting for peering delay...")
-sleep(5)
+sleep(40)
 response = requests.get(url="http://" + HOST_B + "/keys/" + key_addr)
 addr_metadata = AddressMetadata.FromString(response.content)
 print(addr_metadata)

@@ -94,7 +94,7 @@ payment = Payment(merchant_data=payment_details.merchant_data,
 payment_raw = payment.SerializeToString()
 
 # Send payment
-payment_url = BASE_URL + payment_details.payment_url  # TODO: Full payment URL?
+payment_url = payment_details.payment_url
 headers = {
     "Content-Type": "application/bitcoincash-payment",
     "Accept": "application/bitcoincash-paymentack"

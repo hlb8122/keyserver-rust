@@ -35,7 +35,7 @@ use super::errors::*;
 
 use crate::crypto::token::*;
 
-const PAYMENT_URL: &str = "/payments";
+const PAYMENT_PATH: &str = "/payments";
 pub const VALID_DURATION: u64 = 30;
 
 #[derive(Deserialize)]
@@ -200,6 +200,10 @@ where
             _ => return Box::new(self.service.call(req)),
         }
 
+        let conn_info = req.connection_info().clone();
+        let scheme = conn_info.scheme().to_owned();
+        let host = conn_info.host().to_owned();
+
         // Grab token query from authorization header then query string
         let token_str: String = match req.headers().get(AUTHORIZATION) {
             Some(some) => match some.to_str() {
@@ -250,25 +254,16 @@ where
                                 }
                             });
 
-                    // Generate URI
+                    // Generate merchant URL
                     let uri = req.uri();
-                    let url = match (uri.scheme_str(), uri.authority_part()) {
-                        (Some(scheme), Some(authority)) => {
-                            format!("{}://{}{}", scheme, authority, uri.path())
-                        }
-                        (None, None) => format!("http://{}{}", SETTINGS.bind, uri.path()),
-                        (_, _) => {
-                            return Box::new(err(
-                                ServerError::Payment(PaymentError::URIMalformed).into()
-                            ))
-                        }
-                    };
+                    let merchant_url = format!("{}://{}{}", scheme, host, uri.path());
 
                     let response = new_addr.and_then(move |addr_raw| {
                         // Generate outputs
                         let outputs = generate_outputs(addr_raw);
 
                         // Collect payment details
+                        let payment_url = Some(format!("{}://{}{}", scheme, host, PAYMENT_PATH));
                         let payment_details = PaymentDetails {
                             network: Some(SETTINGS.network.to_string()),
                             time: current_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
@@ -276,9 +271,9 @@ where
                                 expiry_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
                             ),
                             memo: None,
-                            merchant_data: Some(url.as_bytes().to_vec()),
+                            merchant_data: Some(merchant_url.as_bytes().to_vec()),
                             outputs,
-                            payment_url: Some(PAYMENT_URL.to_string()),
+                            payment_url,
                         };
                         let mut serialized_payment_details =
                             Vec::with_capacity(payment_details.encoded_len());
@@ -322,18 +317,12 @@ where
             }
         };
 
-        // Validate
+        // Generate merchant URL
         let uri = req.uri();
-        let url = match (uri.scheme_str(), uri.authority_part()) {
-            (Some(scheme), Some(authority)) => format!("{}://{}{}", scheme, authority, uri.path()),
-            (None, None) => format!("http://{}{}", SETTINGS.bind, uri.path()),
-            (_, _) => {
-                return Box::new(ok(req.into_response(
-                    ServerError::Payment(PaymentError::URIMalformed).error_response(),
-                )))
-            }
-        };
-        if !validate_token(url.as_bytes(), SETTINGS.secret.as_bytes(), &token) {
+        let merchant_url = format!("{}://{}{}", scheme, host, uri.path());
+
+        // Validate
+        if !validate_token(merchant_url.as_bytes(), SETTINGS.secret.as_bytes(), &token) {
             Box::new(ok(req.into_response(
                 ServerError::Payment(PaymentError::InvalidAuth).error_response(),
             )))
@@ -484,7 +473,7 @@ mod tests {
         );
         assert_eq!(
             payment_details.payment_url.unwrap(),
-            "/payments".to_string()
+            "http://localhost:8080/payments".to_string()
         );
         assert_eq!(payment_details.merchant_data.unwrap(), key_path.as_bytes())
     }
@@ -552,9 +541,9 @@ mod tests {
         payment.encode(&mut payment_raw).unwrap();
 
         // Check content-type header is enforced
-        let payment_path = payment_details.payment_url.unwrap();
+        let payment_url = payment_details.payment_url.unwrap();
         let req = test::TestRequest::post()
-            .uri(&payment_path)
+            .uri(&payment_url)
             .set_payload(payment_raw.clone())
             .header(ACCEPT, "application/bitcoincash-paymentack")
             .to_request();
@@ -563,7 +552,7 @@ mod tests {
 
         // Check accept header is enforced
         let req = test::TestRequest::post()
-            .uri(&payment_path)
+            .uri(&payment_url)
             .set_payload(payment_raw.clone())
             .header(CONTENT_TYPE, "application/bitcoincash-payment")
             .to_request();
@@ -572,7 +561,7 @@ mod tests {
 
         // Check payment ack and a token
         let req = test::TestRequest::post()
-            .uri(&payment_path)
+            .uri(&payment_url)
             .set_payload(payment_raw.clone())
             .header(CONTENT_TYPE, "application/bitcoincash-payment")
             .header(ACCEPT, "application/bitcoincash-paymentack")
