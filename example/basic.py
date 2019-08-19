@@ -96,8 +96,8 @@ payment_raw = payment.SerializeToString()
 # Send payment
 payment_url = BASE_URL + payment_details.payment_url  # TODO: Full payment URL?
 headers = {
-    "Accept": "application/bitcoin-payment",
-    "Content-Type": "application/bitcoin-paymentack"
+    "Content-Type": "application/bitcoincash-payment",
+    "Accept": "application/bitcoincash-paymentack"
 }
 response = requests.post(url=payment_url, data=payment_raw,
                          headers=headers, allow_redirects=False)

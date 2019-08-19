@@ -51,11 +51,13 @@ pub fn payment_handler(
 ) -> Box<dyn Future<Item = HttpResponse, Error = ServerError>> {
     // Check headers
     let headers = req.headers();
-    if headers.get(ACCEPT) != Some(&HeaderValue::from_str("application/bitcoin-payment").unwrap()) {
+    if headers.get(CONTENT_TYPE)
+        != Some(&HeaderValue::from_str("application/bitcoincash-payment").unwrap())
+    {
         return Box::new(err(PaymentError::Accept.into()));
     }
-    if headers.get(CONTENT_TYPE)
-        != Some(&HeaderValue::from_str("application/bitcoin-paymentack").unwrap())
+    if headers.get(ACCEPT)
+        != Some(&HeaderValue::from_str("application/bitcoincash-paymentack").unwrap())
     {
         return Box::new(err(PaymentError::Content.into()));
     }
@@ -297,7 +299,10 @@ where
                             Vec::with_capacity(payment_invoice.encoded_len());
                         payment_invoice.encode(&mut payment_invoice_raw).unwrap();
 
-                        HttpResponse::PaymentRequired().body(payment_invoice_raw)
+                        HttpResponse::PaymentRequired()
+                            .content_type("application/bitcoincash-paymentrequest")
+                            .header("Content-Transfer-Encoding", "binary")
+                            .body(payment_invoice_raw)
                     });
 
                     // Respond
@@ -546,20 +551,21 @@ mod tests {
         let mut payment_raw = Vec::with_capacity(payment.encoded_len());
         payment.encode(&mut payment_raw).unwrap();
 
-        // Check accept header is enforced
+        // Check content-type header is enforced
         let payment_path = payment_details.payment_url.unwrap();
         let req = test::TestRequest::post()
             .uri(&payment_path)
             .set_payload(payment_raw.clone())
+            .header(ACCEPT, "application/bitcoincash-paymentack")
             .to_request();
         let resp = test::call_service(&mut app, req);
         assert_eq!(resp.status(), StatusCode::NOT_ACCEPTABLE);
 
-        // Check content-type header is enforced
+        // Check accept header is enforced
         let req = test::TestRequest::post()
             .uri(&payment_path)
             .set_payload(payment_raw.clone())
-            .header(ACCEPT, "application/bitcoin-payment")
+            .header(CONTENT_TYPE, "application/bitcoincash-payment")
             .to_request();
         let resp = test::call_service(&mut app, req);
         assert_eq!(resp.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
@@ -568,8 +574,8 @@ mod tests {
         let req = test::TestRequest::post()
             .uri(&payment_path)
             .set_payload(payment_raw.clone())
-            .header(ACCEPT, "application/bitcoin-payment")
-            .header(CONTENT_TYPE, "application/bitcoin-paymentack")
+            .header(CONTENT_TYPE, "application/bitcoincash-payment")
+            .header(ACCEPT, "application/bitcoincash-paymentack")
             .to_request();
         let mut resp = test::call_service(&mut app, req);
         assert_eq!(resp.status(), StatusCode::FOUND);
