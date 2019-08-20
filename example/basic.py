@@ -108,11 +108,11 @@ print("PaymentACK memo:", payment_ack.memo)
 token_url = response.headers["Location"]  # {key URL}?code={payment token}
 
 # Construct Payload
-header = Header(Name="Something wicked", Value="this way comes")
+header = Header(name="Something wicked", value="this way comes")
 metadata_field = MetadataField(
-    Headers=[header], Metadata=b'This gonna be so fucking fast')
+    headers=[header], metadata=b'This gonna be so fucking fast')
 timestamp = int(time())
-payload = Payload(Timestamp=timestamp, Rows=[metadata_field])
+payload = Payload(timestamp=timestamp, rows=[metadata_field])
 
 # Sign
 raw_payload = payload.SerializeToString()
@@ -123,7 +123,7 @@ signature, _ = keypair.sign_compact(digest)
 
 # Address metadata
 addr_metadata = AddressMetadata(
-    PubKey=public_key, Payload=payload, Type=1, Signature=signature)
+    pub_key=public_key, payload=payload, scheme=1, signature=signature)
 raw_addr_meta = addr_metadata.SerializeToString()
 
 # Put metadata using payment token
