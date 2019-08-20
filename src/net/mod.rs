@@ -83,7 +83,7 @@ mod tests {
     };
     use actix_service::Service;
     use actix_web::{http::StatusCode, test, web, App};
-    use bitcoin_hashes::{sha256, Hash};
+    use bitcoin_hashes::{sha256d, Hash};
     use bitcoincash_addr::HashType;
     use secp256k1::{rand, Secp256k1};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -130,7 +130,7 @@ mod tests {
         // Construct signature
         let mut raw_payload = Vec::with_capacity(payload.encoded_len());
         payload.encode(&mut raw_payload).unwrap();
-        let payload_digest = &sha256::Hash::hash(&raw_payload)[..];
+        let payload_digest = &sha256d::Hash::hash(&raw_payload)[..];
         let signature = secp.sign(
             &secp256k1::Message::from_slice(&payload_digest).unwrap(),
             &sk,

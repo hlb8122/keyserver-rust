@@ -53,9 +53,7 @@ payload = Payload(timestamp=timestamp, rows=[metadata_field])
 
 # Sign
 raw_payload = payload.SerializeToString()
-h = sha256()
-h.update(raw_payload)
-digest = h.digest()
+digest = sha256(sha256(raw_payload).digest()).digest()
 signature, _ = keypair.sign_compact(digest)
 
 # Address metadata
