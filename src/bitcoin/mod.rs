@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use bitcoin::Transaction;
+use bitcoin::{Transaction, TxOut};
 use serde::Deserialize;
 
 use crate::{crypto::Address, models::Output, SETTINGS};
@@ -67,18 +67,15 @@ impl WalletState {
         self.0.write().unwrap().remove(&addr);
     }
 
-    pub fn check_outputs(&self, tx: Transaction) -> bool {
-        // TODO: Enforce op_return outputs
-
+    pub fn check_p2pkh(&self, output: &TxOut) -> bool {
         // Check first output
-        let first_output = tx.output.get(0).unwrap();
-        let value = first_output.value;
+        let value = output.value;
         if value != PRICE {
             return false;
         }
 
         // Check p2pkh addr
-        let script = &first_output.script_pubkey[..];
+        let script = &output.script_pubkey[..];
         if let Some(pubkey_hash) = extract_pubkey_hash(script) {
             // Check if wallet contains that address
             if self.0.read().unwrap().contains(&pubkey_hash) {
@@ -91,6 +88,11 @@ impl WalletState {
         } else {
             false
         }
+    }
+
+    pub fn check_outputs(&self, tx: Transaction) -> bool {
+        // TODO: Enforce op_return outputs
+        tx.output.iter().any(|output| self.check_p2pkh(output))
     }
 }
 
