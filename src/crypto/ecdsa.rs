@@ -4,7 +4,7 @@ pub struct Secp256k1PublicKey(pub secp256k1::PublicKey);
 
 impl PublicKey for Secp256k1PublicKey {
     fn serialize(&self) -> Vec<u8> {
-        self.0.serialize_uncompressed().to_vec()
+        self.0.serialize().to_vec()
     }
 
     fn deserialize(raw: &[u8]) -> Result<Self, CryptoError> {

@@ -37,6 +37,7 @@ rpc_connection = AuthServiceProxy(
 # Generate keys
 secret = os.urandom(16)
 keypair = CECKey()
+keypair.set_compressed(True)
 keypair.set_secretbytes(secret)
 private_key = keypair.get_privkey()
 public_key = keypair.get_pubkey()

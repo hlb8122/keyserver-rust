@@ -35,6 +35,7 @@ rpc_connection = AuthServiceProxy(
 # Generate keys
 secret = os.urandom(16)
 keypair = CECKey()
+keypair.set_compressed(True)
 keypair.set_secretbytes(secret)
 private_key = keypair.get_privkey()
 public_key = keypair.get_pubkey()
@@ -112,7 +113,7 @@ header = Header(name="Something wicked", value="this way comes")
 metadata_field = MetadataField(
     headers=[header], metadata=b'This gonna be so fucking fast')
 timestamp = int(time())
-payload = Payload(timestamp=timestamp, rows=[metadata_field])
+payload = Payload(timestamp=timestamp, ttl=3000, rows=[metadata_field])
 
 # Sign
 raw_payload = payload.SerializeToString()
