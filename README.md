@@ -22,7 +22,7 @@ Bitcoin must be run with [RPC](https://bitcoin.org/en/developer-reference#remote
 Install [Rust](https://www.rust-lang.org/tools/install) then
 
 ```bash
-sudo apt install -y pkg-config libssl-dev libzmq3-dev
+sudo apt install -y clang pkg-config libssl-dev libzmq3-dev
 cargo build --release
 ```
 
@@ -48,7 +48,7 @@ The `network` parameter must be either `Mainnet`, `Testnet` or `Regnet`.
 
 Each of the parameters above can be overloaded via command line (replacing `_` with `-`). Additionaly, `config` can be passed via command line to specify a configuration file at a custom location.
 
-A full list of commandline arguments can be viewed via `keyserver --help`
+A full list of command line arguments can be viewed via `keyserver --help`
 
 ### Running
 
