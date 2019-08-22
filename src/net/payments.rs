@@ -13,7 +13,7 @@ use actix_web::{
     web, Error, HttpRequest, HttpResponse, ResponseError,
 };
 use bitcoin::{util::psbt::serialize::Deserialize, Transaction};
-use bitcoincash_addr::HashType;
+use bitcoincash_addr::{Address, HashType};
 use bytes::BytesMut;
 use futures::{
     future::{err, ok, Either, Future, FutureResult},
@@ -200,6 +200,7 @@ where
             _ => return Box::new(self.service.call(req)),
         }
 
+        // Get request data
         let conn_info = req.connection_info().clone();
         let scheme = conn_info.scheme().to_owned();
         let host = conn_info.host().to_owned();
@@ -222,8 +223,9 @@ where
             },
             None => match web::Query::<TokenQuery>::from_query(req.query_string()) {
                 Ok(query) => query.code.clone(), // TODO: Remove this copy
-                // Found no token
                 Err(_) => {
+                    // If no token found then generate invoice
+
                     // Valid interval
                     let current_time = SystemTime::now();
                     let expiry_time = current_time + Duration::from_secs(VALID_DURATION);
@@ -254,14 +256,21 @@ where
                                 }
                             });
 
-                    // Generate merchant URL
+                    // Decode put address
                     let uri = req.uri();
+                    let put_addr_str = uri.path();
+                    let put_addr = match Address::decode(put_addr_str) {
+                        Ok(ok) => ok,
+                        Err(e) => return Box::new(err(ServerError::Address(e).into())),
+                    };
+
+                    // Generate merchant URL
                     let base_url = format!("{}://{}", scheme, host);
-                    let merchant_url = format!("{}{}", base_url, uri.path());
+                    let merchant_url = format!("{}{}", base_url, put_addr_str);
 
                     let response = new_addr.and_then(move |addr_raw| {
                         // Generate outputs
-                        let outputs = generate_outputs(addr_raw, &base_url);
+                        let outputs = generate_outputs(addr_raw, &base_url, put_addr.into_body());
 
                         // Collect payment details
                         let payment_url = Some(format!("{}{}", base_url, PAYMENT_PATH));

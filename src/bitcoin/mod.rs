@@ -157,7 +157,7 @@ fn extract_pubkey_hash(raw_script: &[u8]) -> Option<Vec<u8>> {
     Some(raw_script[3..23].to_vec())
 }
 
-pub fn generate_outputs(pk_hash: Vec<u8>, base_url: &str) -> Vec<Output> {
+pub fn generate_outputs(pk_hash: Vec<u8>, base_url: &str, put_pk_hash: Vec<u8>) -> Vec<Output> {
     // Generate p2pkh
     let p2pkh_script_pre: [u8; 3] = [118, 169, 20];
     let p2pkh_script_post: [u8; 2] = [136, 172];
@@ -172,7 +172,7 @@ pub fn generate_outputs(pk_hash: Vec<u8>, base_url: &str) -> Vec<Output> {
     let op_return_script = [
         &[106, 9 + 20 + base_url.len() as u8][..],
         &KEYSERVER_PREFIX[..],
-        &pk_hash[..],
+        &put_pk_hash[..],
         raw_base_url,
     ]
     .concat();
