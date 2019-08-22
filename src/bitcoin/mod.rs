@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_gen_check_output() {
         let pk_hash = [3; 20].to_vec();
-        let outputs = generate_outputs(pk_hash.clone(), "");
+        let outputs = generate_outputs(pk_hash.clone(), "", pk_hash.clone());
         assert_eq!(PRICE, outputs.get(0).unwrap().amount.unwrap());
         let extracted_pkh = extract_pubkey_hash(&outputs.get(0).unwrap().script[..]);
         assert_eq!(pk_hash, extracted_pkh.unwrap());
