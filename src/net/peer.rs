@@ -3,7 +3,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use bitcoin_hashes::{hash160, Hash};
 use bytes::BytesMut;
 use futures::{
     future::{self, Either},
@@ -51,11 +50,11 @@ impl Default for PeerClient {
 impl PeerClient {
     fn get_metadata(
         &self,
-        peer_host: &str,
+        peer_url: &str,
         bitcoin_addr: &str,
     ) -> impl Future<Item = AddressMetadata, Error = PeerError> + Send {
         // Construct URL
-        let url_str = format!("http://{}/keys/{}", peer_host, bitcoin_addr);
+        let url_str = format!("{}/keys/{}", peer_url, bitcoin_addr);
         let url = match Url::parse(&url_str) {
             Ok(ok) => ok,
             Err(e) => return Either::B(future::err(e.into())),
@@ -84,11 +83,11 @@ impl PeerClient {
     pub fn peer_polling(
         &self,
         key_db: KeyDB,
-        key_stream: impl Stream<Item = (String, Address, Vec<u8>), Error = StreamError> + Send,
+        key_stream: impl Stream<Item = (String, Address), Error = StreamError> + Send,
     ) -> impl Future<Item = (), Error = ()> + Send {
         let client = self.clone();
         key_stream
-            .for_each(move |(peer_addr, bitcoin_addr, meta_digest)| {
+            .for_each(move |(peer_addr, bitcoin_addr)| {
                 let bitcoin_addr_str = match bitcoin_addr.encode() {
                     Ok(ok) => ok,
                     Err(e) => {
@@ -115,15 +114,9 @@ impl PeerClient {
                         }
                     };
 
-                    // Check digest matches
+                    // Check metadata
                     let mut metadata_raw = Vec::with_capacity(metadata.encoded_len());
                     metadata.encode(&mut metadata_raw).unwrap();
-                    let actual_digest = &hash160::Hash::hash(&metadata_raw)[..];
-                    if actual_digest != &meta_digest[..] {
-                        warn!("found fraudulent metadata");
-                        return future::ok(());
-                    }
-
                     if let Err(e) = validate::<Secp256k1>(&bitcoin_addr, &metadata) {
                         warn!("peer supplied invalid metadata {:?}", e);
                         return future::ok(());

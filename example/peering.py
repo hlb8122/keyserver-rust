@@ -94,8 +94,7 @@ my_addr = utxo["address"]
 change = input_value - price - fee
 p2pkh = payment_details.outputs[0].script
 payment_addr = str(P2PKHBitcoinAddress.from_scriptPubKey(p2pkh))
-host_bytes = HOST_A.encode('utf-8')
-peering_dat = b'keyserver' + Hash160(public_key) + Hash160(raw_addr_meta) + host_bytes
+op_return = payment_details.outputs[1].script[2:].hex()
 outputs = [
     {
         payment_addr: price  # Payment output
@@ -104,7 +103,7 @@ outputs = [
         my_addr: change  # Change output
     },
     {
-        "data": peering_dat.hex()
+        "data": op_return
     }
 ]
 

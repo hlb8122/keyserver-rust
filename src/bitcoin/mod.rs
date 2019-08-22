@@ -96,9 +96,9 @@ impl WalletState {
     }
 }
 
-pub fn extract_op_return(script: &[u8]) -> Option<(String, Address, Vec<u8>)> {
-    // OP_RETURN || LEN || keyserver || bitcoin pk hash || metadata digest || peer host
-    if script.len() <= 2 + 9 + 20 + 20 {
+pub fn extract_op_return(script: &[u8]) -> Option<(String, Address)> {
+    // OP_RETURN || LEN || keyserver || bitcoin pk hash || peer host
+    if script.len() <= 2 + 9 + 20 {
         // Too short
         return None;
     }
@@ -119,15 +119,15 @@ pub fn extract_op_return(script: &[u8]) -> Option<(String, Address, Vec<u8>)> {
     }
 
     // Parse host
-    let raw_host = &script[51..];
-    let host = match std::str::from_utf8(raw_host) {
+    let raw_host = &script[31..];
+    let url = match std::str::from_utf8(raw_host) {
         Ok(ok) => ok.to_string(),
         Err(_) => return None,
     };
 
     // Don't get from ourselves
     // TODO: This is super crude
-    if host == SETTINGS.bind {
+    if url == format!("http://{}", SETTINGS.bind) {
         return None;
     }
 
@@ -138,11 +138,7 @@ pub fn extract_op_return(script: &[u8]) -> Option<(String, Address, Vec<u8>)> {
         network: SETTINGS.network.clone().into(),
         ..Default::default()
     };
-
-    // Parse metaaddress digest
-    let meta_digest = script[31..51].to_vec();
-
-    Some((host, bitcoin_addr, meta_digest))
+    Some((url, bitcoin_addr))
 }
 
 fn extract_pubkey_hash(raw_script: &[u8]) -> Option<Vec<u8>> {
@@ -161,7 +157,7 @@ fn extract_pubkey_hash(raw_script: &[u8]) -> Option<Vec<u8>> {
     Some(raw_script[3..23].to_vec())
 }
 
-pub fn generate_outputs(pk_hash: Vec<u8>) -> Vec<Output> {
+pub fn generate_outputs(pk_hash: Vec<u8>, base_url: &str) -> Vec<Output> {
     // Generate p2pkh
     let p2pkh_script_pre: [u8; 3] = [118, 169, 20];
     let p2pkh_script_post: [u8; 2] = [136, 172];
@@ -171,7 +167,20 @@ pub fn generate_outputs(pk_hash: Vec<u8>) -> Vec<Output> {
         script: p2pkh_script,
     };
 
-    vec![p2pkh_output]
+    // Generate op return
+    let raw_base_url = base_url.as_bytes();
+    let op_return_script = [
+        &[106, 9 + 20 + base_url.len() as u8][..],
+        &KEYSERVER_PREFIX[..],
+        &pk_hash[..],
+        raw_base_url,
+    ]
+    .concat();
+    let op_return_output = Output {
+        amount: Some(0),
+        script: op_return_script,
+    };
+    vec![p2pkh_output, op_return_output]
 }
 
 #[cfg(test)]
@@ -181,7 +190,7 @@ mod tests {
     #[test]
     fn test_gen_check_output() {
         let pk_hash = [3; 20].to_vec();
-        let outputs = generate_outputs(pk_hash.clone());
+        let outputs = generate_outputs(pk_hash.clone(), "");
         assert_eq!(PRICE, outputs.get(0).unwrap().amount.unwrap());
         let extracted_pkh = extract_pubkey_hash(&outputs.get(0).unwrap().script[..]);
         assert_eq!(pk_hash, extracted_pkh.unwrap());

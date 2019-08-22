@@ -37,12 +37,11 @@ pub fn get_tx_stream(
 // Extract peer address, bitcoin address and metadata digest from tx stream
 pub fn extract_details(
     stream: impl Stream<Item = Transaction, Error = StreamError>,
-) -> impl Stream<Item = (String, Address, Vec<u8>), Error = StreamError> {
+) -> impl Stream<Item = (String, Address), Error = StreamError> {
     stream.filter_map(|tx| {
-        // This unwrap is safe due to tx originating from deserialization
-        // The identifier op_return should be last
-        let output = tx.output.last().unwrap();
-        let script = output.script_pubkey.as_bytes();
-        extract_op_return(script)
+        tx.output
+            .iter()
+            .map(|output| output.script_pubkey.as_bytes())
+            .find_map(extract_op_return)
     })
 }

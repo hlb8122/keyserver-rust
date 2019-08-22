@@ -74,10 +74,14 @@ for utxo in utxos:
 my_addr = utxo["address"]
 change = input_value - price - fee
 p2pkh = payment_details.outputs[0].script
+op_return = payment_details.outputs[1].script[2:].hex()
 payment_addr = str(P2PKHBitcoinAddress.from_scriptPubKey(p2pkh))
 outputs = [
     {
         payment_addr: price  # Payment output
+    },
+    {
+        "data": op_return
     },
     {
         my_addr: change  # Change output

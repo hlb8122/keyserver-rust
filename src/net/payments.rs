@@ -256,14 +256,15 @@ where
 
                     // Generate merchant URL
                     let uri = req.uri();
-                    let merchant_url = format!("{}://{}{}", scheme, host, uri.path());
+                    let base_url = format!("{}://{}", scheme, host);
+                    let merchant_url = format!("{}{}", base_url, uri.path());
 
                     let response = new_addr.and_then(move |addr_raw| {
                         // Generate outputs
-                        let outputs = generate_outputs(addr_raw);
+                        let outputs = generate_outputs(addr_raw, &base_url);
 
                         // Collect payment details
-                        let payment_url = Some(format!("{}://{}{}", scheme, host, PAYMENT_PATH));
+                        let payment_url = Some(format!("{}{}", base_url, PAYMENT_PATH));
                         let payment_details = PaymentDetails {
                             network: Some(SETTINGS.network.to_string()),
                             time: current_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
