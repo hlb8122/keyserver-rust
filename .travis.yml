@@ -2,13 +2,17 @@ language: rust
 rust:
   - stable
 
-os:
-  - linux
-    dist: bionic
-  - windows
+matrix:
+  include:
+    - os: linux
+      dist: bionic
+    - os: windows
 
 cache: cargo
-
+before_install:
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then 
+  - sudo apt update
+  - sudo apt install -y pkg-config libzmq3-dev libssl-dev; fi
 
 stages:
   - build
