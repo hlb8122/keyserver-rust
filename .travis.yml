@@ -1,24 +1,32 @@
-dist: bionic
+os:
+  - linux
+    dist: bionic
+  - windows
+
 language: rust
 rust:
   - stable
 
 cache: cargo
 before_install:
+  - if [ "$TRAVIS_OS_NAME" = "linux" ]; then 
   - sudo apt update
-  - sudo apt install -y pkg-config libzmq3-dev libssl-dev
+  - sudo apt install -y pkg-config libzmq3-dev libssl-dev; fi
+
 
 jobs:
   include:
   - stage: build
     script:
       cargo build --verbose
+  - stage:
   - stage: unittest
     script:
     - cargo test bitcoin
     - cargo test crypto
     - cargo test db
   - stage: regtest
+    if: "$TRAVIS_OS_NAME" = "linux"
     script:
     - sudo add-apt-repository -y ppa:bitcoin-abc/ppa
     - sudo apt-get update
