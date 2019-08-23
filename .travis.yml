@@ -3,9 +3,12 @@ rust:
   - stable
 
 os:
+  - linux
+    dist: bionic
   - windows
 
 cache: cargo
+
 
 stages:
   - build
