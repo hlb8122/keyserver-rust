@@ -19,7 +19,6 @@ jobs:
   - stage: build
     script:
       cargo build --verbose
-  - stage:
   - stage: unittest
     script:
     - cargo test bitcoin
