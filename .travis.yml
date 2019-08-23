@@ -1,11 +1,11 @@
+language: rust
+rust:
+  - stable
+
 os:
   - linux
     dist: bionic
   - windows
-
-language: rust
-rust:
-  - stable
 
 cache: cargo
 before_install:
