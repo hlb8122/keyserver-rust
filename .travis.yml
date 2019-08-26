@@ -2,11 +2,10 @@ language: rust
 rust:
   - stable
 
-matrix:
-  include:
-    - os: linux
-      dist: bionic
-    - os: windows
+os: 
+  - linux
+    dist: bionic
+  - windows
 
 cache: cargo
 before_install:
