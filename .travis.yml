@@ -6,11 +6,15 @@ cache: cargo
 before_install:
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt update; fi
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt install -y pkg-config libzmq3-dev libssl-dev; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then choco install pkgconfiglite; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then choco install git -s "https://github.com/keenbrowne/chocolatey-zeromq.git"; fi
 
+  
 jobs:
   include:
   - stage: build-linux
     os: linux
+    dist: xenial
     script:
       cargo build --verbose
   - stage: build-windows
@@ -19,6 +23,7 @@ jobs:
       cargo build --verbose
   - stage: unittest-linux
     os: linux
+    dist: xenial
     script:
     - cargo test bitcoin
     - cargo test crypto
@@ -31,6 +36,7 @@ jobs:
     - cargo test db
   - stage: regtest-linux
     os: linux
+    dist: xenial
     script:
     - sudo add-apt-repository -y ppa:bitcoin-abc/ppa
     - sudo apt-get update
