@@ -13,23 +13,18 @@ before_install:
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt update; fi
   - if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo apt install -y pkg-config libzmq3-dev libssl-dev; fi
 
-stages:
-  - build
-  - unittest
-  - name: regtest
-    if: os = linux
-
-build:
-  script:
-    cargo build --verbose
-
-unittest:
+jobs:
+  include:
+  - stage: build
+    script:
+      cargo build --verbose
+  - stage: unittest
     script:
     - cargo test bitcoin
     - cargo test crypto
     - cargo test db
-  
-regtest:
+  - stage: regtest
+    if: os = linux
     script:
     - sudo add-apt-repository -y ppa:bitcoin-abc/ppa
     - sudo apt-get update
