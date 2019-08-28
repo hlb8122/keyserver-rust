@@ -121,7 +121,7 @@ mod tests {
         let payload = Payload {
             timestamp,
             ttl: 10,
-            rows: vec![],
+            entries: vec![],
         };
         let metadata = AddressMetadata {
             pub_key: vec![],

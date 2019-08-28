@@ -114,10 +114,10 @@ token_url = response.headers["Location"]  # {key URL}?code={payment token}
 
 # Construct Payload
 header = Header(name="Something wicked", value="this way comes")
-metadata_field = MetadataField(
-    headers=[header], metadata=b'This gonna be so fucking fast')
+entry = Entry(
+    headers=[header], entry_data=b'This gonna be so fucking fast')
 timestamp = int(time())
-payload = Payload(timestamp=timestamp, ttl=3000, rows=[metadata_field])
+payload = Payload(timestamp=timestamp, ttl=3000, entries=[entry])
 
 # Sign
 raw_payload = payload.SerializeToString()

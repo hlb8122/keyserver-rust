@@ -47,10 +47,10 @@ key_addr = str(P2PKHBitcoinAddress.from_pubkey(public_key))
 
 # Construct Payload
 header = Header(name="Something wicked", value="this way comes")
-metadata_field = MetadataField(
-    headers=[header], Metadata=b'This gonna be so fucking fast')
+entry = Entry(
+    headers=[header], entry_data=b'This gonna be so fucking fast')
 timestamp = int(time())
-payload = Payload(timestamp=timestamp, rows=[metadata_field])
+payload = Payload(timestamp=timestamp, entries=[entry])
 
 # Sign
 raw_payload = payload.SerializeToString()

@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   package='models',
   syntax='proto3',
   serialized_options=None,
-  serialized_pb=_b('\n\x15\x61\x64\x64ressmetadata.proto\x12\x06models\"%\n\x06Header\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"B\n\rMetadataField\x12\x1f\n\x07headers\x18\x01 \x03(\x0b\x32\x0e.models.Header\x12\x10\n\x08metadata\x18\x02 \x01(\x0c\"N\n\x07Payload\x12\x11\n\ttimestamp\x18\x01 \x01(\x03\x12\x0b\n\x03ttl\x18\x02 \x01(\x03\x12#\n\x04rows\x18\x03 \x03(\x0b\x32\x15.models.MetadataField\"\xbb\x01\n\x0f\x41\x64\x64ressMetadata\x12\x0f\n\x07pub_key\x18\x01 \x01(\x0c\x12\x11\n\tsignature\x18\x02 \x01(\x0c\x12\x37\n\x06scheme\x18\x03 \x01(\x0e\x32\'.models.AddressMetadata.SignatureScheme\x12 \n\x07payload\x18\x04 \x01(\x0b\x32\x0f.models.Payload\")\n\x0fSignatureScheme\x12\x0b\n\x07SCHNORR\x10\x00\x12\t\n\x05\x45\x43\x44SA\x10\x01\x62\x06proto3')
+  serialized_pb=_b('\n\x15\x61\x64\x64ressmetadata.proto\x12\x06models\"%\n\x06Header\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t\"J\n\x05\x45ntry\x12\x0c\n\x04kind\x18\x01 \x01(\t\x12\x1f\n\x07headers\x18\x02 \x03(\x0b\x32\x0e.models.Header\x12\x12\n\nentry_data\x18\x03 \x01(\x0c\"I\n\x07Payload\x12\x11\n\ttimestamp\x18\x01 \x01(\x03\x12\x0b\n\x03ttl\x18\x02 \x01(\x03\x12\x1e\n\x07\x65ntries\x18\x03 \x03(\x0b\x32\r.models.Entry\"\xbb\x01\n\x0f\x41\x64\x64ressMetadata\x12\x0f\n\x07pub_key\x18\x01 \x01(\x0c\x12\x11\n\tsignature\x18\x02 \x01(\x0c\x12\x37\n\x06scheme\x18\x03 \x01(\x0e\x32\'.models.AddressMetadata.SignatureScheme\x12 \n\x07payload\x18\x04 \x01(\x0b\x32\x0f.models.Payload\")\n\x0fSignatureScheme\x12\x0b\n\x07SCHNORR\x10\x00\x12\t\n\x05\x45\x43\x44SA\x10\x01\x62\x06proto3')
 )
 
 
@@ -41,8 +41,8 @@ _ADDRESSMETADATA_SIGNATURESCHEME = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=367,
-  serialized_end=408,
+  serialized_start=370,
+  serialized_end=411,
 )
 _sym_db.RegisterEnumDescriptor(_ADDRESSMETADATA_SIGNATURESCHEME)
 
@@ -85,23 +85,30 @@ _HEADER = _descriptor.Descriptor(
 )
 
 
-_METADATAFIELD = _descriptor.Descriptor(
-  name='MetadataField',
-  full_name='models.MetadataField',
+_ENTRY = _descriptor.Descriptor(
+  name='Entry',
+  full_name='models.Entry',
   filename=None,
   file=DESCRIPTOR,
   containing_type=None,
   fields=[
     _descriptor.FieldDescriptor(
-      name='headers', full_name='models.MetadataField.headers', index=0,
-      number=1, type=11, cpp_type=10, label=3,
+      name='kind', full_name='models.Entry.kind', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='headers', full_name='models.Entry.headers', index=1,
+      number=2, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='metadata', full_name='models.MetadataField.metadata', index=1,
-      number=2, type=12, cpp_type=9, label=1,
+      name='entry_data', full_name='models.Entry.entry_data', index=2,
+      number=3, type=12, cpp_type=9, label=1,
       has_default_value=False, default_value=_b(""),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -119,7 +126,7 @@ _METADATAFIELD = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=72,
-  serialized_end=138,
+  serialized_end=146,
 )
 
 
@@ -145,7 +152,7 @@ _PAYLOAD = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR),
     _descriptor.FieldDescriptor(
-      name='rows', full_name='models.Payload.rows', index=2,
+      name='entries', full_name='models.Payload.entries', index=2,
       number=3, type=11, cpp_type=10, label=3,
       has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
@@ -163,8 +170,8 @@ _PAYLOAD = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=140,
-  serialized_end=218,
+  serialized_start=148,
+  serialized_end=221,
 )
 
 
@@ -216,17 +223,17 @@ _ADDRESSMETADATA = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=221,
-  serialized_end=408,
+  serialized_start=224,
+  serialized_end=411,
 )
 
-_METADATAFIELD.fields_by_name['headers'].message_type = _HEADER
-_PAYLOAD.fields_by_name['rows'].message_type = _METADATAFIELD
+_ENTRY.fields_by_name['headers'].message_type = _HEADER
+_PAYLOAD.fields_by_name['entries'].message_type = _ENTRY
 _ADDRESSMETADATA.fields_by_name['scheme'].enum_type = _ADDRESSMETADATA_SIGNATURESCHEME
 _ADDRESSMETADATA.fields_by_name['payload'].message_type = _PAYLOAD
 _ADDRESSMETADATA_SIGNATURESCHEME.containing_type = _ADDRESSMETADATA
 DESCRIPTOR.message_types_by_name['Header'] = _HEADER
-DESCRIPTOR.message_types_by_name['MetadataField'] = _METADATAFIELD
+DESCRIPTOR.message_types_by_name['Entry'] = _ENTRY
 DESCRIPTOR.message_types_by_name['Payload'] = _PAYLOAD
 DESCRIPTOR.message_types_by_name['AddressMetadata'] = _ADDRESSMETADATA
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
@@ -238,12 +245,12 @@ Header = _reflection.GeneratedProtocolMessageType('Header', (_message.Message,),
   ))
 _sym_db.RegisterMessage(Header)
 
-MetadataField = _reflection.GeneratedProtocolMessageType('MetadataField', (_message.Message,), dict(
-  DESCRIPTOR = _METADATAFIELD,
+Entry = _reflection.GeneratedProtocolMessageType('Entry', (_message.Message,), dict(
+  DESCRIPTOR = _ENTRY,
   __module__ = 'addressmetadata_pb2'
-  # @@protoc_insertion_point(class_scope:models.MetadataField)
+  # @@protoc_insertion_point(class_scope:models.Entry)
   ))
-_sym_db.RegisterMessage(MetadataField)
+_sym_db.RegisterMessage(Entry)
 
 Payload = _reflection.GeneratedProtocolMessageType('Payload', (_message.Message,), dict(
   DESCRIPTOR = _PAYLOAD,

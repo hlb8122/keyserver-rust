@@ -108,9 +108,10 @@ mod tests {
         }];
 
         // Construct metadata field
-        let rows = vec![MetadataField {
+        let entries = vec![Entry {
+            kind: "text_utf8".to_string(),
             headers,
-            metadata: "This is going to be so much faster than Go"
+            entry_data: "This is going to be so much faster than Go"
                 .as_bytes()
                 .to_vec(),
         }];
@@ -124,7 +125,7 @@ mod tests {
         let payload = Payload {
             timestamp,
             ttl,
-            rows,
+            entries,
         };
 
         // Construct signature
