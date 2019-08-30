@@ -34,7 +34,7 @@ impl Settings {
         s.set_default("rpc_username", "username").unwrap();
         s.set_default("rpc_password", "password").unwrap();
         s.set_default("zmq_port", "28332").unwrap();
-        s.set_default("secret", "b").unwrap();
+        s.set_default("secret", "secret").unwrap();
         let mut default_db = home_dir.clone();
         default_db.push(".keyserver-rust/db");
         s.set_default("db_path", default_db.to_str()).unwrap();

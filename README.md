@@ -32,23 +32,23 @@ The executable will be located at `./target/release/keyserver`.
 
 Settings may be given by `JSON`, `TOML`, `YAML`, `HJSON` and `INI` files and, by default, are located at `~/.keyserver-rust/config.*`.
 
-| Name | Description |
-| - | - |
-| bind | Bind address |
-| node_ip | Bitcoin IP |
-| rpc_port | Bitcoin RPC port |
-| rpc_username | Bitcoin RPC username |
-| rpc_password | Bitcoin RPC password |
-| zmq_port | Bitcoin ZMQ port |
-| secret | Keyserver secret |
-| db_path | Database path |
-| network | Bitcoin network |
+| Name | Description | Default |
+| - | - | - |
+| `bind` | Bind address | `127.0.0.1:8080` |
+| `node_ip` | Bitcoin IP | `127.0.0.1` |
+| `rpc_port` | Bitcoin RPC port | `18443` |
+| `rpc_username` | Bitcoin RPC username | `username` |
+| `rpc_password` | Bitcoin RPC password | `password` |
+| `zmq_port` | Bitcoin ZMQ port | `28332` |
+| `secret` | Keyserver secret | `secret` |
+| `db_path` | Database path | `~/.keyserver-rust/db` |
+| `network` | Bitcoin network | `regnet` |
 
-The `network` parameter must be either `Mainnet`, `Testnet` or `Regnet`.
+The `network` parameter must be either `mainnet`, `testnet` or `regnet`.
 
-Each of the parameters above can be overloaded via command line (replacing `_` with `-`). Additionaly, `config` can be passed via command line to specify a configuration file at a custom location.
+Each of the parameters above can be overloaded via command line (replacing `_` with `-`). Additionaly, `--config` can be passed via command line to specify a configuration file at a custom location.
 
-A full list of command line arguments can be viewed via `keyserver --help`
+A full list of command line arguments can be viewed via `keyserver --help`.
 
 ### Running
 
