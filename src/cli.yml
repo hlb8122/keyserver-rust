@@ -42,3 +42,8 @@ args:
         long: network
         help: Bitcoin network
         takes_value: true
+    - secret:
+        short: s
+        long: secret
+        help: Set the signing secret
+        takes_value: true

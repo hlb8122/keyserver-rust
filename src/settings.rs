@@ -86,9 +86,12 @@ impl Settings {
         if let Some(db_path) = matches.value_of("db-path") {
             s.set("db_path", db_path)?;
         }
+
+        // Set the bitcoin network
         if let Some(db_path) = matches.value_of("network") {
             s.set("network", db_path)?;
         }
+
         s.try_into()
     }
 }
