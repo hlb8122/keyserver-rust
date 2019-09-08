@@ -1,7 +1,6 @@
 use std::fmt;
 
 use actix_web::{error, HttpResponse};
-use bitcoin::consensus::encode::Error as TxDeserializeError;
 use bitcoincash_addr::AddressError;
 use prost::DecodeError;
 use rocksdb::Error as RocksError;
@@ -139,21 +138,11 @@ impl error::ResponseError for ServerError {
 
 #[derive(Debug)]
 pub enum PaymentError {
-    Content,
-    Accept,
-    Decode,
-    Payload,
-    NoMerchantDat,
-    InvalidMerchantDat,
     InvalidAuth,
-    NoToken,
-    URIMalformed,
-    NoTx,
-    TxDeserialize(TxDeserializeError),
-    InvalidOutputs,
-    InvalidTx,
-    MismatchedNetwork,
-    AddrFetchFailed,
+    Bip70Server(reqwest::Error),
+    Payload,
+    Decode,
+    EmptyPaymentRequest,
 }
 
 impl From<PaymentError> for ServerError {
@@ -162,30 +151,20 @@ impl From<PaymentError> for ServerError {
     }
 }
 
-impl From<TxDeserializeError> for PaymentError {
-    fn from(err: TxDeserializeError) -> PaymentError {
-        PaymentError::TxDeserialize(err)
+impl From<reqwest::Error> for PaymentError {
+    fn from(err: reqwest::Error) -> PaymentError {
+        PaymentError::Bip70Server(err)
     }
 }
 
 impl fmt::Display for PaymentError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let printable = match self {
-            PaymentError::Content => "invalid content-type",
-            PaymentError::Accept => "not acceptable",
-            PaymentError::Decode => "failed to decode body",
-            PaymentError::Payload => "failed to receive payload",
-            PaymentError::NoMerchantDat => "no merchant data",
-            PaymentError::InvalidMerchantDat => "invalid merchant data",
-            PaymentError::NoToken => "no token",
-            PaymentError::InvalidAuth => "invalid authorization",
-            PaymentError::URIMalformed => "malformed URI",
-            PaymentError::NoTx => "no payment tx",
-            PaymentError::TxDeserialize(_) => "payment tx malformed",
-            PaymentError::InvalidOutputs => "invalid outputs",
-            PaymentError::InvalidTx => "invalid tx",
-            PaymentError::AddrFetchFailed => "failed to fetch address",
-            PaymentError::MismatchedNetwork => "address mismatched with node network",
+            PaymentError::InvalidAuth => "invalid payment token",
+            PaymentError::Bip70Server(err) => return err.fmt(f),
+            PaymentError::Payload => "failed fetching payload",
+            PaymentError::Decode => "failed to decode invoice response",
+            PaymentError::EmptyPaymentRequest => "no payment request",
         };
         write!(f, "{}", printable)
     }
@@ -194,21 +173,8 @@ impl fmt::Display for PaymentError {
 impl error::ResponseError for PaymentError {
     fn error_response(&self) -> HttpResponse {
         match self {
-            PaymentError::Accept => HttpResponse::NotAcceptable(),
-            PaymentError::Content => HttpResponse::UnsupportedMediaType(),
-            PaymentError::NoMerchantDat => HttpResponse::BadRequest(),
-            PaymentError::Payload => HttpResponse::BadRequest(),
-            PaymentError::Decode => HttpResponse::BadRequest(),
-            PaymentError::InvalidMerchantDat => HttpResponse::BadRequest(),
-            PaymentError::InvalidAuth => HttpResponse::PaymentRequired(),
-            PaymentError::NoToken => HttpResponse::PaymentRequired(),
-            PaymentError::URIMalformed => HttpResponse::BadRequest(),
-            PaymentError::NoTx => HttpResponse::BadRequest(),
-            PaymentError::TxDeserialize(_) => HttpResponse::BadRequest(),
-            PaymentError::InvalidOutputs => HttpResponse::BadRequest(),
-            PaymentError::InvalidTx => HttpResponse::BadRequest(),
-            PaymentError::MismatchedNetwork => HttpResponse::BadRequest(),
-            PaymentError::AddrFetchFailed => HttpResponse::InternalServerError(),
+            PaymentError::InvalidAuth => HttpResponse::BadRequest(),
+            _ => HttpResponse::InternalServerError(),
         }
         .body(self.to_string())
     }

@@ -1,20 +1,29 @@
 pub mod errors;
-pub mod jsonrpc_client;
-pub mod payments;
 pub mod peer;
 
-use actix_web::{web, HttpResponse};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use actix_web::{http::header::AUTHORIZATION, web, HttpRequest, HttpResponse};
 use bytes::BytesMut;
-use futures::{future::Future, stream::Stream};
+use futures::{
+    future::{err, Future},
+    stream::Stream,
+};
 use prost::Message;
+use reqwest::r#async::Client as HttpClient;
+use serde_derive::Deserialize;
 
 use crate::{
-    crypto::{authentication::validate, ecdsa::Secp256k1, Address},
+    crypto::{authentication::validate, ecdsa::Secp256k1, Address, token::validate_token},
     db::KeyDB,
-    models::AddressMetadata,
+    models::*,
+    SETTINGS,
 };
 
-use errors::ServerError;
+use errors::*;
+
+pub const VALID_DURATION: u64 = 30;
+pub const PRICE: u64 = 5;
 
 pub fn get_key(
     addr_str: web::Path<String>,
@@ -34,11 +43,130 @@ pub fn get_key(
     Ok(HttpResponse::Ok().body(raw_payload))
 }
 
+#[derive(Deserialize)]
+pub struct TokenQuery {
+    code: String,
+}
+
 pub fn put_key(
+    req: HttpRequest,
     addr_str: web::Path<String>,
     payload: web::Payload,
     db_data: web::Data<KeyDB>,
+    http_client: web::Data<HttpClient>,
 ) -> Box<dyn Future<Item = HttpResponse, Error = ServerError>> {
+    // Get request data
+    let conn_info = req.connection_info().clone();
+    let scheme = conn_info.scheme().to_owned();
+    let host = conn_info.host().to_owned();
+
+    // Grab token query from authorization header then query string
+    let token_str: String = match req.headers().get(AUTHORIZATION) {
+        Some(some) => match some.to_str() {
+            Ok(auth_str) => {
+                if auth_str.len() >= 4 && &auth_str[0..4] == "POP " {
+                    auth_str[4..].to_string()
+                } else {
+                    return Box::new(err(PaymentError::InvalidAuth.into()));
+                }
+            }
+            Err(_) => return Box::new(err(PaymentError::InvalidAuth.into())),
+        },
+        None => match web::Query::<TokenQuery>::from_query(req.query_string()) {
+            Ok(query) => query.code.clone(), // TODO: Remove clone?
+            Err(_) => {
+                // Decode put address
+                let uri = req.uri();
+                let put_addr_path = uri.path();
+                let put_addr_str = &put_addr_path[6..]; // TODO: This is super hacky
+                if let Err(e) = Address::decode(put_addr_str) {
+                    return Box::new(err(ServerError::Address(e)));
+                }
+
+                // Payment interval
+                let current_time = SystemTime::now();
+                let expiry_time = current_time + Duration::from_secs(VALID_DURATION);
+
+                // Generate merchant URL
+                let base_url = format!("{}://{}", scheme, host);
+                let merchant_url = format!("{}{}", base_url, put_addr_path);
+
+                // Construct invoice request
+                let invoice_request = InvoiceRequest {
+                    network: SETTINGS.network.to_string(),
+                    amount: PRICE,
+                    time: current_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    expires: expiry_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    ack_memo: "Thanks for the custom!".to_string(),
+                    req_memo: String::new(),
+                    tokenize: true,
+                    tx_data: vec![],
+                    merchant_data: merchant_url.as_bytes().to_vec(),
+                    callback_url: String::new(),
+                };
+                let mut serialized_invoice_request =
+                    Vec::with_capacity(invoice_request.encoded_len());
+                invoice_request
+                    .encode(&mut serialized_invoice_request)
+                    .unwrap();
+
+                // Send InvoiceRequest to BIP70 server
+                let bip70_response = http_client
+                    .post(&SETTINGS.bip70_server_url)
+                    .body(serialized_invoice_request)
+                    .send()
+                    .map_err(PaymentError::Bip70Server);
+
+                // Extract PaymentDetails
+                let fut_invoice_response = bip70_response.and_then(|resp| {
+                    resp.into_body()
+                        .map_err(|_| PaymentError::Payload)
+                        .fold(BytesMut::new(), move |mut body, chunk| {
+                            body.extend_from_slice(&chunk);
+                            Ok::<_, PaymentError>(body)
+                        })
+                        .and_then(|payment_raw| {
+                            InvoiceResponse::decode(payment_raw).map_err(|_| PaymentError::Decode)
+                        })
+                });
+
+                // Create response
+                let response = fut_invoice_response
+                    .and_then(|invoice_response| {
+                        let payment_request = match invoice_response.payment_request {
+                            Some(some) => some,
+                            None => return Err(PaymentError::Decode),
+                        };
+                        let mut serialized_payment_request =
+                            Vec::with_capacity(payment_request.encoded_len());
+                        payment_request
+                            .encode(&mut serialized_payment_request)
+                            .unwrap();
+
+                        Ok(HttpResponse::PaymentRequired()
+                            .content_type("application/bitcoincash-paymentrequest")
+                            .header("Content-Transfer-Encoding", "binary")
+                            .body(serialized_payment_request))
+                    })
+                    .map_err(ServerError::Payment);
+
+                return Box::new(response);
+            }
+        },
+    };
+
+    // Decode token
+    let url_safe_config = base64::Config::new(base64::CharacterSet::UrlSafe, false);
+    let token = match base64::decode_config(&token_str, url_safe_config) {
+        Ok(some) => some,
+        Err(_) => return Box::new(err(ServerError::Payment(PaymentError::InvalidAuth))),
+    };
+
+    // Generate PUT URL
+    let uri = req.uri();
+    let merchant_url = format!("{}://{}{}", scheme, host, uri.path());
+
+    if !validate_token(merchant_url.as_bytes(), SETTINGS.secret.as_bytes(), &token) {}
     // Decode metadata
     let body_raw = payload.map_err(|_| ServerError::MetadataDecode).fold(
         BytesMut::new(),

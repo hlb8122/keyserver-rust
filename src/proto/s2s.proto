@@ -1,0 +1,39 @@
+syntax = "proto3";
+package models;
+import "proto/paymentrequest.proto";
+
+// Message sent from service to BIP 70 server
+message InvoiceRequest {
+    // Bitcoin network
+    string network = 1;
+    // Amount
+    uint64 amount = 2;
+    // Issue time
+    uint64 time = 3;
+    // Expiry time
+    uint64 expires = 4;
+    string req_memo = 5;
+    bytes merchant_data = 6;
+    // Memo to be sent in PaymentAck
+    string ack_memo = 7;
+    // Interpret merchant data as URL and append token
+    bool tokenize = 8;
+    // Data to be inserted into op_return
+    bytes tx_data = 9;
+    // Callback URL
+    string callback_url = 10;
+}
+
+// Message sent in response to the InvoiceRequest
+message InvoiceResponse {
+    // UUID of the payment
+    string payment_id = 1;
+    // Payment request to be sent to customer
+    PaymentRequest payment_request = 2;
+}
+
+// Message sent to service on successful payment
+message CallbackPayload {
+    string payment_id = 1;
+    PaymentACK payment_ack = 2;
+}

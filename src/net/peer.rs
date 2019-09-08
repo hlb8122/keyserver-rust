@@ -1,7 +1,4 @@
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use bytes::BytesMut;
 use futures::{
@@ -16,10 +13,11 @@ use crate::{
     crypto::{authentication::validate, ecdsa::Secp256k1, Address},
     db::KeyDB,
     models::AddressMetadata,
-    payments::VALID_DURATION,
 };
 
 use crate::bitcoin::tx_stream::StreamError;
+
+const POLL_DURATION: u64 = 60;
 
 #[derive(Debug)]
 pub enum PeerError {
@@ -36,13 +34,13 @@ impl From<UrlError> for PeerError {
 
 #[derive(Clone)]
 pub struct PeerClient {
-    client: Arc<Client>,
+    client: Client,
 }
 
 impl Default for PeerClient {
     fn default() -> PeerClient {
         PeerClient {
-            client: Arc::new(Client::new()),
+            client: Client::new(),
         }
     }
 }
@@ -101,7 +99,7 @@ impl PeerClient {
 
                 // Waiting period
                 let delay =
-                    tokio_timer::Delay::new(Instant::now() + Duration::from_secs(VALID_DURATION));
+                    tokio_timer::Delay::new(Instant::now() + Duration::from_secs(POLL_DURATION));
                 let delayed_meta_fut = delay.then(|_| metadata_fut);
 
                 let key_db_inner = key_db.clone();

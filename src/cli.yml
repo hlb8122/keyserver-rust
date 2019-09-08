@@ -17,18 +17,6 @@ args:
         long: node-ip
         help: Bitcoin IP address
         takes_value: true
-    - rpc-port:
-        long: rpc-port
-        help: Bitcoin RPC port
-        takes_value: true
-    - rpc-username:
-        long: rpc-username
-        help: Bitcoin RPC username
-        takes_value: true
-    - rpc-password:
-        long: rpc-password
-        help: Bitcoin RPC password
-        takes_value: true
     - zmq-port:
         long: zmq-port
         help: Bitcoin ZMQ port

@@ -3,6 +3,7 @@ fn main() {
         &[
             "src/proto/addressmetadata.proto",
             "src/proto/paymentrequest.proto",
+            "src/proto/s2s.proto",
         ],
         &["src/"],
     )

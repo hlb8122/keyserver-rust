@@ -8,12 +8,10 @@ use crate::bitcoin::Network;
 pub struct Settings {
     pub bind: String,
     pub node_ip: String,
-    pub rpc_port: u16,
-    pub rpc_username: String,
-    pub rpc_password: String,
     pub zmq_port: u16,
     pub secret: String,
     pub db_path: String,
+    pub bip70_server_url: String,
     pub network: Network,
 }
 
@@ -30,9 +28,6 @@ impl Settings {
         };
         s.set_default("bind", "127.0.0.1:8080").unwrap();
         s.set_default("node_ip", "127.0.0.1").unwrap();
-        s.set_default("rpc_port", "18443").unwrap();
-        s.set_default("rpc_username", "username").unwrap();
-        s.set_default("rpc_password", "password").unwrap();
         s.set_default("zmq_port", "28332").unwrap();
         s.set_default("secret", "secret").unwrap();
         let mut default_db = home_dir.clone();
@@ -55,21 +50,6 @@ impl Settings {
         // Set node IP from cmd line
         if let Some(node_ip) = matches.value_of("node-ip") {
             s.set("node_ip", node_ip)?;
-        }
-
-        // Set rpc port from cmd line
-        if let Ok(rpc_port) = value_t!(matches, "rpc-port", i64) {
-            s.set("rpc_port", rpc_port)?;
-        }
-
-        // Set rpc username from cmd line
-        if let Some(rpc_username) = matches.value_of("rpc-username") {
-            s.set("rpc_username", rpc_username)?;
-        }
-
-        // Set rpc password from cmd line
-        if let Some(rpc_password) = matches.value_of("rpc-password") {
-            s.set("rpc_password", rpc_password)?;
         }
 
         // Set zmq port from cmd line

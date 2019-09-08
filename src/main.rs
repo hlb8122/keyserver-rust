@@ -15,12 +15,7 @@ use futures::Future;
 use lazy_static::lazy_static;
 use log::{error, info};
 
-use crate::{
-    bitcoin::{tx_stream, BitcoinClient, WalletState},
-    db::KeyDB,
-    net::{payments::*, *},
-    settings::Settings,
-};
+use crate::{bitcoin::tx_stream, db::KeyDB, net::*, settings::Settings};
 
 pub mod models {
     include!(concat!(env!("OUT_DIR"), "/models.rs"));
@@ -40,15 +35,8 @@ fn main() -> io::Result<()> {
     // Open DB
     let key_db = KeyDB::try_new(&SETTINGS.db_path).unwrap();
 
-    // Init wallet
-    let wallet_state = WalletState::default();
-
-    // Init Bitcoin client
-    let bitcoin_client = BitcoinClient::new(
-        format!("http://{}:{}", SETTINGS.node_ip.clone(), SETTINGS.rpc_port),
-        SETTINGS.rpc_username.clone(),
-        SETTINGS.rpc_password.clone(),
-    );
+    // Http client
+    let http_client = reqwest::r#async::Client::new();
 
     // Init ZMQ
     let (tx_stream, connection) =
@@ -57,16 +45,15 @@ fn main() -> io::Result<()> {
     actix_rt::Arbiter::current().send(connection.map_err(|e| error!("{:?}", e)));
 
     // Peer client
-    let client = peer::PeerClient::default();
+    let peer_client = peer::PeerClient::default();
 
     // Setup peer polling logic
-    actix_rt::Arbiter::current().send(client.peer_polling(key_db.clone(), key_stream));
+    actix_rt::Arbiter::current().send(peer_client.peer_polling(key_db.clone(), key_stream));
 
     // Init REST server
     HttpServer::new(move || {
         let key_db_inner = key_db.clone();
-        let wallet_state_inner = wallet_state.clone();
-        let bitcoin_client_inner = bitcoin_client.clone();
+        let http_client_inner = http_client.clone();
 
         // Init app
         App::new()
@@ -76,20 +63,11 @@ fn main() -> io::Result<()> {
                 // Key scope
                 web::scope("/keys").service(
                     web::resource("/{addr}")
-                        .data(key_db_inner)
-                        .wrap(CheckPayment::new(
-                            bitcoin_client_inner.clone(),
-                            wallet_state_inner.clone(),
-                        )) // Apply payment check to put key
+                        .data(key_db_inner) // Apply payment check to put key
+                        .data(http_client_inner)
                         .route(web::get().to(get_key))
                         .route(web::put().to_async(put_key)),
                 ),
-            )
-            .service(
-                // Payment endpoint
-                web::resource("/payments")
-                    .data((bitcoin_client_inner, wallet_state_inner))
-                    .route(web::post().to_async(payment_handler)),
             )
             .service(actix_files::Files::new("/", "./static/").index_file("index.html"))
     })
