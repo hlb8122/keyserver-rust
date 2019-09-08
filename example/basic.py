@@ -23,7 +23,7 @@ from time import time
 # Run the keyserver
 # cargo run
 
-BASE_URL = "http://0.0.0.0:8080"
+BASE_URL = "http://127.0.0.1:8080"
 bitcoin.SelectParams("regtest")
 
 # Init Bitcoin RPC
@@ -45,6 +45,7 @@ key_addr = str(P2PKHBitcoinAddress.from_pubkey(public_key))
 
 # Put key without payment
 response = requests.put(url=BASE_URL + "/keys/" + key_addr)
+print(response.status_code)
 assert(response.status_code == 402)  # Payment required
 
 # Deserialize invoice

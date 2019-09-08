@@ -116,7 +116,7 @@ pub fn put_key(
 
                 // Send InvoiceRequest to BIP70 server
                 let bip70_response = http_client
-                    .post(&SETTINGS.payment_server_url)
+                    .post(&format!("{}/invoice", SETTINGS.payment_server_url))
                     .body(serialized_invoice_request)
                     .send()
                     .map_err(PaymentError::Bip70Server);
