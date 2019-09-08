@@ -1,6 +1,6 @@
 use crate::{crypto::*, models::AddressMetadata, net::errors::ValidationError};
 
-use bitcoin_hashes::{sha256d, Hash};
+use bitcoin_hashes::{sha256, Hash};
 use prost::Message;
 
 pub fn validate<S: SigScheme>(
@@ -24,7 +24,7 @@ pub fn validate<S: SigScheme>(
         .ok_or(ValidationError::EmptyPayload)?;
     let mut raw_payload = Vec::with_capacity(payload.encoded_len());
     payload.encode(&mut raw_payload).unwrap();
-    let payload_digest = &sha256d::Hash::hash(&raw_payload)[..];
+    let payload_digest = &sha256::Hash::hash(&raw_payload)[..];
     let sig = S::Signature::deserialize(&metadata.signature).map_err(|e| e.into())?;
 
     S::verify(payload_digest, &meta_pk, &sig).map_err(|e| e.into())
