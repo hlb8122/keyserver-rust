@@ -14,7 +14,7 @@ use reqwest::r#async::Client as HttpClient;
 use serde_derive::Deserialize;
 
 use crate::{
-    crypto::{authentication::validate, ecdsa::Secp256k1, Address, token::validate_token},
+    crypto::{authentication::validate, ecdsa::Secp256k1, token::validate_token, Address},
     db::KeyDB,
     models::*,
     SETTINGS,
@@ -55,26 +55,30 @@ pub fn put_key(
     db_data: web::Data<KeyDB>,
     http_client: web::Data<HttpClient>,
 ) -> Box<dyn Future<Item = HttpResponse, Error = ServerError>> {
-    // Get request data
+    // Collect request info
     let conn_info = req.connection_info().clone();
     let scheme = conn_info.scheme().to_owned();
     let host = conn_info.host().to_owned();
+    let res_query = web::Query::<TokenQuery>::from_query(req.query_string());
 
-    // Grab token query from authorization header then query string
-    let token_str: String = match req.headers().get(AUTHORIZATION) {
-        Some(some) => match some.to_str() {
-            Ok(auth_str) => {
-                if auth_str.len() >= 4 && &auth_str[0..4] == "POP " {
-                    auth_str[4..].to_string()
-                } else {
-                    return Box::new(err(PaymentError::InvalidAuth.into()));
+    // Grab token query string then from authorization header
+    let token_str: &str = if let Ok(ref query) = res_query {
+        // Extract from query string
+        &query.code
+    } else {
+        match req.headers().get(AUTHORIZATION) {
+            Some(some) => match some.to_str() {
+                Ok(auth_str) => {
+                    // Extract POP token
+                    if auth_str.len() >= 4 && &auth_str[0..4] == "POP " {
+                        &auth_str[4..]
+                    } else {
+                        return Box::new(err(PaymentError::InvalidAuth.into()));
+                    }
                 }
-            }
-            Err(_) => return Box::new(err(PaymentError::InvalidAuth.into())),
-        },
-        None => match web::Query::<TokenQuery>::from_query(req.query_string()) {
-            Ok(query) => query.code.clone(), // TODO: Remove clone?
-            Err(_) => {
+                Err(_) => return Box::new(err(PaymentError::InvalidAuth.into())),
+            },
+            None => {
                 // Decode put address
                 let uri = req.uri();
                 let put_addr_path = uri.path();
@@ -112,7 +116,7 @@ pub fn put_key(
 
                 // Send InvoiceRequest to BIP70 server
                 let bip70_response = http_client
-                    .post(&SETTINGS.bip70_server_url)
+                    .post(&SETTINGS.payment_server_url)
                     .body(serialized_invoice_request)
                     .send()
                     .map_err(PaymentError::Bip70Server);
@@ -152,7 +156,7 @@ pub fn put_key(
 
                 return Box::new(response);
             }
-        },
+        }
     };
 
     // Decode token

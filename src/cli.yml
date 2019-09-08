@@ -13,13 +13,10 @@ args:
         long: bind
         help: Bind address for keyserver
         takes_value: true
-    - node-ip:
-        long: node-ip
-        help: Bitcoin IP address
-        takes_value: true
-    - zmq-port:
-        long: zmq-port
-        help: Bitcoin ZMQ port
+    - zmq-addr:
+        short: z
+        long: zmq-addr
+        help: Bitcoin ZMQ address
         takes_value: true
     - db-path:
         short: d
@@ -30,8 +27,12 @@ args:
         long: network
         help: Bitcoin network
         takes_value: true
+    - payment-server-url:
+        long: payment-server-url
+        help: Payment server URL
+        takes_value: true
     - secret:
         short: s
         long: secret
-        help: Set the signing secret
+        help: Signing secret
         takes_value: true

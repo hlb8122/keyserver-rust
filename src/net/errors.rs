@@ -38,6 +38,50 @@ impl Into<ValidationError> for CryptoError {
 }
 
 #[derive(Debug)]
+pub enum PaymentError {
+    InvalidAuth,
+    Bip70Server(reqwest::Error),
+    Payload,
+    Decode,
+    EmptyPaymentRequest,
+}
+
+impl From<PaymentError> for ServerError {
+    fn from(err: PaymentError) -> Self {
+        ServerError::Payment(err)
+    }
+}
+
+impl From<reqwest::Error> for PaymentError {
+    fn from(err: reqwest::Error) -> PaymentError {
+        PaymentError::Bip70Server(err)
+    }
+}
+
+impl fmt::Display for PaymentError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match self {
+            PaymentError::InvalidAuth => "invalid payment token",
+            PaymentError::Bip70Server(err) => return err.fmt(f),
+            PaymentError::Payload => "failed fetching payload",
+            PaymentError::Decode => "failed to decode invoice response",
+            PaymentError::EmptyPaymentRequest => "no payment request",
+        };
+        write!(f, "{}", printable)
+    }
+}
+
+impl error::ResponseError for PaymentError {
+    fn error_response(&self) -> HttpResponse {
+        match self {
+            PaymentError::InvalidAuth => HttpResponse::BadRequest(),
+            _ => return HttpResponse::InternalServerError().finish(), // Don't expose internal errors
+        }
+        .body(self.to_string())
+    }
+}
+
+#[derive(Debug)]
 pub enum ServerError {
     DB(RocksError),
     Validation(ValidationError),
@@ -125,7 +169,7 @@ impl error::ResponseError for ServerError {
         match self {
             ServerError::Validation(err) => err.error_response(),
             // Do not yield sensitive information to clients
-            ServerError::DB(_) => HttpResponse::InternalServerError().body("internal db error"),
+            ServerError::DB(_) => HttpResponse::InternalServerError().finish(), // Don't expose internal errors
             ServerError::NotFound => HttpResponse::NotFound().body(self.to_string()),
             ServerError::MetadataDecode => HttpResponse::BadRequest().body(self.to_string()),
             ServerError::UnsupportedSigScheme => HttpResponse::BadRequest().body(self.to_string()),
@@ -133,49 +177,5 @@ impl error::ResponseError for ServerError {
             ServerError::Payment(err) => err.error_response(),
             ServerError::Address(err) => HttpResponse::BadRequest().body(err.to_string()),
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum PaymentError {
-    InvalidAuth,
-    Bip70Server(reqwest::Error),
-    Payload,
-    Decode,
-    EmptyPaymentRequest,
-}
-
-impl From<PaymentError> for ServerError {
-    fn from(err: PaymentError) -> Self {
-        ServerError::Payment(err)
-    }
-}
-
-impl From<reqwest::Error> for PaymentError {
-    fn from(err: reqwest::Error) -> PaymentError {
-        PaymentError::Bip70Server(err)
-    }
-}
-
-impl fmt::Display for PaymentError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let printable = match self {
-            PaymentError::InvalidAuth => "invalid payment token",
-            PaymentError::Bip70Server(err) => return err.fmt(f),
-            PaymentError::Payload => "failed fetching payload",
-            PaymentError::Decode => "failed to decode invoice response",
-            PaymentError::EmptyPaymentRequest => "no payment request",
-        };
-        write!(f, "{}", printable)
-    }
-}
-
-impl error::ResponseError for PaymentError {
-    fn error_response(&self) -> HttpResponse {
-        match self {
-            PaymentError::InvalidAuth => HttpResponse::BadRequest(),
-            _ => HttpResponse::InternalServerError(),
-        }
-        .body(self.to_string())
     }
 }

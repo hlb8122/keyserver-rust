@@ -39,8 +39,7 @@ fn main() -> io::Result<()> {
     let http_client = reqwest::r#async::Client::new();
 
     // Init ZMQ
-    let (tx_stream, connection) =
-        tx_stream::get_tx_stream(&format!("tcp://{}:{}", SETTINGS.node_ip, SETTINGS.zmq_port));
+    let (tx_stream, connection) = tx_stream::get_tx_stream(&SETTINGS.zmq_addr);
     let key_stream = tx_stream::extract_details(tx_stream);
     actix_rt::Arbiter::current().send(connection.map_err(|e| error!("{:?}", e)));
 
@@ -60,10 +59,9 @@ fn main() -> io::Result<()> {
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
             .service(
-                // Key scope
                 web::scope("/keys").service(
                     web::resource("/{addr}")
-                        .data(key_db_inner) // Apply payment check to put key
+                        .data(key_db_inner)
                         .data(http_client_inner)
                         .route(web::get().to(get_key))
                         .route(web::put().to_async(put_key)),

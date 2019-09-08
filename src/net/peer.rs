@@ -17,7 +17,8 @@ use crate::{
 
 use crate::bitcoin::tx_stream::StreamError;
 
-const POLL_DURATION: u64 = 60;
+// Duration between hearing Keyserver tx and fetching
+const FETCH_WAIT: u64 = 60;
 
 #[derive(Debug)]
 pub enum PeerError {
@@ -83,7 +84,7 @@ impl PeerClient {
         key_db: KeyDB,
         key_stream: impl Stream<Item = (String, Address), Error = StreamError> + Send,
     ) -> impl Future<Item = (), Error = ()> + Send {
-        let client = self.clone();
+        let client = self.to_owned();
         key_stream
             .for_each(move |(peer_addr, bitcoin_addr)| {
                 let bitcoin_addr_str = match bitcoin_addr.encode() {
@@ -99,7 +100,7 @@ impl PeerClient {
 
                 // Waiting period
                 let delay =
-                    tokio_timer::Delay::new(Instant::now() + Duration::from_secs(POLL_DURATION));
+                    tokio_timer::Delay::new(Instant::now() + Duration::from_secs(FETCH_WAIT));
                 let delayed_meta_fut = delay.then(|_| metadata_fut);
 
                 let key_db_inner = key_db.clone();
@@ -122,11 +123,11 @@ impl PeerClient {
 
                     match key_db_inner.check_timestamp(&bitcoin_addr, &metadata) {
                         Ok(Err(_)) => {
-                            error!("refusing to pull outdated metadata");
+                            warn!("refusing to pull outdated metadata");
                             return future::ok(());
                         }
                         Err(_) => {
-                            error!("failed to check timestamp");
+                            warn!("failed to check timestamp");
                             return future::ok(());
                         }
                         _ => (),

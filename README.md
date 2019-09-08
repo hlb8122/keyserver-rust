@@ -16,6 +16,9 @@ Traditional keyservers are subject to certificate spamming attacks. By being a f
 
 Bitcoin must be run with [RPC](https://bitcoin.org/en/developer-reference#remote-procedure-calls-rpcs) and raw transaction [ZMQ](https://github.com/bitcoin/bitcoin/blob/master/doc/zmq.md) enabled.
 
+### Setting up a Payment Server
+
+See installation instructions [here](https://github.com/hlb8122/payment-server).
 
 ### Build
 
@@ -35,13 +38,10 @@ Settings may be given by `JSON`, `TOML`, `YAML`, `HJSON` and `INI` files and, by
 | Name | Description | Default |
 | - | - | - |
 | `bind` | Bind address | `127.0.0.1:8080` |
-| `node_ip` | Bitcoin IP | `127.0.0.1` |
-| `rpc_port` | Bitcoin RPC port | `18443` |
-| `rpc_username` | Bitcoin RPC username | `username` |
-| `rpc_password` | Bitcoin RPC password | `password` |
-| `zmq_port` | Bitcoin ZMQ port | `28332` |
+| `zmq_addr` | Bitcoin ZMQ address | `tcp://127.0.0.1:28332` |
 | `secret` | Keyserver secret | `secret` |
 | `db_path` | Database path | `~/.keyserver-rust/db` |
+| `payment_server_url` | Payment server URL | `http://127.0.0.1:8900` | 
 | `network` | Bitcoin network | `regnet` |
 
 The `network` parameter must be either `mainnet`, `testnet` or `regnet`.
