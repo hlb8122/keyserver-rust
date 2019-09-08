@@ -121,7 +121,7 @@ payload = Payload(timestamp=timestamp, ttl=3000, entries=[entry])
 
 # Sign
 raw_payload = payload.SerializeToString()
-digest = sha256(sha256(raw_payload).digest()).digest()
+digest = sha256(raw_payload).digest()
 signature, _ = keypair.sign_compact(digest)
 
 # Address metadata

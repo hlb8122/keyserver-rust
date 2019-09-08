@@ -19,3 +19,5 @@ Cargo.lock
 
 db/
 test_db/
+
+example/__pycache__/
