@@ -132,7 +132,7 @@ pub fn payment_handler(
         redirect_url.set_query(Some(&format!("code={}", token)));
 
         // Generate response
-        Ok(HttpResponse::Found()
+        Ok(HttpResponse::Accepted()
             .header(LOCATION, redirect_url.into_string())
             .header(AUTHORIZATION, format!("POP {}", token))
             .header(PRAGMA, "no-cache")
@@ -578,7 +578,7 @@ mod tests {
             .header(ACCEPT, "application/bitcoincash-paymentack")
             .to_request();
         let mut resp = test::call_service(&mut app, req);
-        assert_eq!(resp.status(), StatusCode::FOUND);
+        assert_eq!(resp.status(), StatusCode::ACCEPTED);
         let body_vec = resp.take_body().collect().wait().unwrap();
         let payment_ack_raw = body_vec.get(0).unwrap();
         let payment_ack = PaymentAck::decode(payment_ack_raw).unwrap();
