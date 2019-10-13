@@ -11,7 +11,7 @@ use prost::Message;
 use crate::{
     crypto::{authentication::validate, ecdsa::Secp256k1, Address},
     db::KeyDB,
-    models::AddressMetadata,
+    models::{AddressMetadata, Payload},
 };
 
 use errors::ServerError;
@@ -61,8 +61,12 @@ pub fn put_key(
             _ => return Err(ServerError::UnsupportedSigScheme),
         }
 
+        // Decode payload
+        let raw_payload = &metadata.serialized_payload;
+        let payload = Payload::decode(raw_payload).map_err(|_| ServerError::PayloadDecode)?;
+
         // Check age
-        db_data.check_timestamp(&addr, &metadata)??;
+        db_data.check_timestamp(&addr, &payload)??;
 
         // Put to database
         db_data.put(&addr, &metadata)?;
@@ -140,7 +144,7 @@ mod tests {
         // Construct metadata
         let metadata = AddressMetadata {
             pub_key: pubkey_raw,
-            payload: Some(payload),
+            serialized_payload: raw_payload,
             signature: signature.serialize_compact().to_vec(),
             scheme: 1,
         };

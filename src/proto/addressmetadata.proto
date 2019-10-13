@@ -7,7 +7,7 @@ message Header {
     string value = 2;
 }
 
-// MetadataField is an indidual piece of structured data provided by wallet authors.
+// Entry is an indidual piece of structured data provided by wallet authors.
 message Entry {
     // Kind is a hint to wallets as to what type of data to deserialize from the metadata field.
     string kind = 1;
@@ -40,5 +40,5 @@ message AddressMetadata  {
     }
     SignatureScheme scheme = 3;
     // Payload is the metadata set by the user, and covered by the signature.
-    Payload payload = 4;
+    bytes serialized_payload = 4;
 }

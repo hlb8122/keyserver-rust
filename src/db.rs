@@ -23,7 +23,7 @@ fn expired(payload: &Payload) -> bool {
 fn ttl_filter(_level: u32, _key: &[u8], value: &[u8]) -> CompactionDecision {
     // This panics if the bytes stored are fucked
     let metadata = AddressMetadata::decode(value).unwrap();
-    let payload = metadata.payload.unwrap();
+    let payload = Payload::decode(metadata.serialized_payload).unwrap();
     if expired(&payload) {
         // Payload has expired
         CompactionDecision::Remove
@@ -62,7 +62,9 @@ impl KeyDB {
             .map(|opt_dat| opt_dat.map(|dat| AddressMetadata::decode(&dat[..]).unwrap()));
 
         if let Ok(Some(metadata)) = &metadata_res {
-            if expired(metadata.payload.as_ref().unwrap()) {
+            let raw_payload = &metadata.serialized_payload;
+            let payload = Payload::decode(raw_payload).unwrap();
+            if expired(&payload) {
                 self.0.delete(&addr)?;
                 Ok(None)
             } else {
@@ -76,24 +78,19 @@ impl KeyDB {
     pub fn check_timestamp(
         &self,
         addr: &Address,
-        metadata: &AddressMetadata,
+        new_payload: &Payload,
     ) -> Result<Result<(), ValidationError>, Error> {
         if let Some(old_metadata) = self.get(addr)? {
-            if let (Some(new_payload), Some(old_payload)) =
-                (metadata.payload.as_ref(), old_metadata.payload)
-            {
-                if new_payload.timestamp < old_payload.timestamp {
-                    // Timestamp is outdated
-                    return Ok(Err(ValidationError::Outdated));
-                } // TODO: Check if = and use lexicographical
+            // This panics if stored bytes are fucked
+            let old_payload = Payload::decode(old_metadata.serialized_payload).unwrap();
+            if new_payload.timestamp < old_payload.timestamp {
+                // Timestamp is outdated
+                return Ok(Err(ValidationError::Outdated));
+            } // TODO: Check if = and use lexicographical
 
-                if expired(new_payload) {
-                    // Payload has expired
-                    return Ok(Err(ValidationError::ExpiredTTL));
-                }
-            } else {
-                // Payload is empty
-                return Ok(Err(ValidationError::EmptyPayload));
+            if expired(new_payload) {
+                // Payload has expired
+                return Ok(Err(ValidationError::ExpiredTTL));
             }
         }
         Ok(Ok(()))
@@ -123,9 +120,11 @@ mod tests {
             ttl: 10,
             entries: vec![],
         };
+        let mut serialized_payload = Vec::with_capacity(payload.encoded_len());
+        payload.encode(&mut serialized_payload).unwrap();
         let metadata = AddressMetadata {
             pub_key: vec![],
-            payload: Some(payload),
+            serialized_payload,
             signature: vec![],
             scheme: 1,
         };

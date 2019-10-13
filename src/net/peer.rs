@@ -15,7 +15,7 @@ use reqwest::{r#async::Client, Error as ReqError, Url, UrlError};
 use crate::{
     crypto::{authentication::validate, ecdsa::Secp256k1, Address},
     db::KeyDB,
-    models::AddressMetadata,
+    models::{AddressMetadata, Payload},
     payments::VALID_DURATION,
 };
 
@@ -122,7 +122,16 @@ impl PeerClient {
                         return future::ok(());
                     }
 
-                    match key_db_inner.check_timestamp(&bitcoin_addr, &metadata) {
+                    let raw_payload = &metadata.serialized_payload;
+                    let payload = match Payload::decode(raw_payload) {
+                        Ok(ok) => ok,
+                        Err(e) => {
+                            error!("peer supplied invalid payload {:?}", e);
+                            return future::ok(());
+                        }
+                    };
+
+                    match key_db_inner.check_timestamp(&bitcoin_addr, &payload) {
                         Ok(Err(_)) => {
                             error!("refusing to pull outdated metadata");
                             return future::ok(());
