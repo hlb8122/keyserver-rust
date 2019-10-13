@@ -126,7 +126,7 @@ signature, _ = keypair.sign_compact(digest)
 
 # Address metadata
 addr_metadata = AddressMetadata(
-    pub_key=public_key, payload=payload, scheme=1, signature=signature)
+    pub_key=public_key, serialized_payload=raw_payload, scheme=1, signature=signature)
 raw_addr_meta = addr_metadata.SerializeToString()
 
 # Put metadata using payment token
