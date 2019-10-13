@@ -9,6 +9,7 @@ pub mod settings;
 
 use std::io;
 
+use actix_cors::Cors;
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use env_logger::Env;
 use futures::Future;
@@ -72,6 +73,7 @@ fn main() -> io::Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
+            .wrap(Cors::new())
             .service(
                 // Key scope
                 web::scope("/keys").service(

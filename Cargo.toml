@@ -5,6 +5,7 @@ authors = ["Harry L. Barber <hlbarber93@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+actix-cors = "*"
 actix-files = "*"
 actix-web = "*"
 actix-service = "*"
