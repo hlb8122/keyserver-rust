@@ -28,17 +28,17 @@ impl Settings {
             Some(some) => some,
             None => return Err(ConfigError::Message("no home directory".to_string())),
         };
-        s.set_default("bind", "127.0.0.1:8080").unwrap();
-        s.set_default("node_ip", "127.0.0.1").unwrap();
-        s.set_default("rpc_port", "18443").unwrap();
-        s.set_default("rpc_username", "username").unwrap();
-        s.set_default("rpc_password", "password").unwrap();
-        s.set_default("zmq_port", "28332").unwrap();
-        s.set_default("secret", "secret").unwrap();
+        s.set_default("bind", "127.0.0.1:8080")?;
+        s.set_default("node_ip", "127.0.0.1")?;
+        s.set_default("rpc_port", "18443")?;
+        s.set_default("rpc_username", "username")?;
+        s.set_default("rpc_password", "password")?;
+        s.set_default("zmq_port", "28332")?;
+        s.set_default("secret", "secret")?;
         let mut default_db = home_dir.clone();
         default_db.push(".keyserver-rust/db");
-        s.set_default("db_path", default_db.to_str()).unwrap();
-        s.set_default("network", "regnet").unwrap();
+        s.set_default("db_path", default_db.to_str())?;
+        s.set_default("network", "regnet")?;
 
         // Load config from file
         let mut default_config = home_dir.clone();
