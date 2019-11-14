@@ -7,7 +7,7 @@ message Header {
     string value = 2;
 }
 
-// Entry is an indidual piece of structured data provided by wallet authors.
+// Entry is an individual piece of structured data provided by wallet authors.
 message Entry {
     // Kind is a hint to wallets as to what type of data to deserialize from the metadata field.
     string kind = 1;
