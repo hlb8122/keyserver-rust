@@ -2,8 +2,8 @@ use bitcoin_hashes::{
     hmac::{Hmac, HmacEngine},
     sha256, Hash, HashEngine,
 };
-
 use secp256k1::rand::Rng;
+use subtle::ConstantTimeEq;
 
 pub fn generate_secret(len: usize) -> Vec<u8> {
     let mut rng = secp256k1::rand::thread_rng();
@@ -17,20 +17,8 @@ pub fn generate_token(msg: &[u8], secret: &[u8]) -> Vec<u8> {
 }
 
 pub fn validate_token(msg: &[u8], secret: &[u8], expected: &[u8]) -> bool {
-    if expected.len() != 32 {
-        return false;
-    }
-    validate_token_inner(msg, secret, expected) == 0
-}
-
-#[inline(never)]
-fn validate_token_inner(msg: &[u8], secret: &[u8], expected: &[u8]) -> u8 {
-    let token = generate_token(msg, secret);
-    let mut tmp = 0;
-    for i in 0..32 {
-        tmp |= token[i] ^ expected[i];
-    }
-    tmp
+    let token = &generate_token(msg, secret)[..];
+    token.ct_eq(expected).unwrap_u8() == 1
 }
 
 #[cfg(test)]
