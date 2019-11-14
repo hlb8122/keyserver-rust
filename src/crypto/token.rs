@@ -17,7 +17,20 @@ pub fn generate_token(msg: &[u8], secret: &[u8]) -> Vec<u8> {
 }
 
 pub fn validate_token(msg: &[u8], secret: &[u8], expected: &[u8]) -> bool {
-    generate_token(msg, secret) == expected
+    if expected.len() != 32 {
+        return false;
+    }
+    validate_token_inner(msg, secret, expected) == 0
+}
+
+#[inline(never)]
+fn validate_token_inner(msg: &[u8], secret: &[u8], expected: &[u8]) -> u8 {
+    let token = generate_token(msg, secret);
+    let mut tmp = 0;
+    for i in 0..32 {
+        tmp |= token[i] ^ expected[i];
+    }
+    tmp
 }
 
 #[cfg(test)]
