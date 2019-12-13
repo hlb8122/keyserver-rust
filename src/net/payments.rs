@@ -43,7 +43,7 @@ pub struct TokenQuery {
     code: String,
 }
 
-///Payment handler
+/// Payment handler
 pub fn payment_handler(
     req: HttpRequest,
     payload: web::Payload,
@@ -79,7 +79,8 @@ pub fn payment_handler(
             let tx_raw = match payment.transactions.get(0) {
                 Some(some) => some,
                 None => return Either::A(err(PaymentError::NoTx)),
-            }; // Assume first tx
+            };
+            // Assume first tx
             let tx = match Transaction::deserialize(tx_raw) {
                 Ok(ok) => ok,
                 Err(e) => return Either::A(err(PaymentError::from(e))),

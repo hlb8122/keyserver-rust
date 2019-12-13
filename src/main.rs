@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate clap;
+#[macro_use]
+extern crate log;
 
 pub mod bitcoin;
 pub mod crypto;
@@ -14,7 +16,6 @@ use actix_web::{middleware::Logger, web, App, HttpServer};
 use env_logger::Env;
 use futures::Future;
 use lazy_static::lazy_static;
-use log::{error, info};
 
 use crate::{
     bitcoin::{tx_stream, BitcoinClient, WalletState},
