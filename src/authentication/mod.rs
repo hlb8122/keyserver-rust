@@ -1,6 +1,20 @@
-use crate::{crypto::*, models::AddressMetadata, net::errors::ValidationError};
+pub mod errors;
+
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::crypto::*;
+use errors::ValidationError;
 
 use bitcoin_hashes::{sha256, Hash};
+use cashweb_protobuf::address_metadata::{AddressMetadata, Payload};
+
+pub fn expired(payload: &Payload) -> bool {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+    payload.timestamp + payload.ttl < timestamp
+}
 
 pub fn validate<S: SigScheme>(
     addr: &Address,
@@ -11,7 +25,7 @@ pub fn validate<S: SigScheme>(
 
     // Check preimage
     let meta_addr = meta_pk.to_raw_address();
-    let expected_addr = addr.as_ref();
+    let expected_addr = addr.as_body();
     if meta_addr != expected_addr {
         return Err(ValidationError::Preimage);
     }

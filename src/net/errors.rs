@@ -1,40 +1,11 @@
 use std::fmt;
 
-use actix_web::{error, HttpResponse};
 use bitcoin::consensus::encode::Error as TxDeserializeError;
 use bitcoincash_addr::AddressError;
 use prost::DecodeError;
 use rocksdb::Error as RocksError;
 
 use crate::crypto::errors::CryptoError;
-
-#[derive(Debug)]
-pub enum ValidationError {
-    KeyType,
-    Preimage,
-    Outdated,
-    ExpiredTTL,
-    Crypto(CryptoError),
-}
-
-impl fmt::Display for ValidationError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let printable = match self {
-            ValidationError::KeyType => "bad key type",
-            ValidationError::Preimage => "digest mismatch",
-            ValidationError::Outdated => "metadata is outdated",
-            ValidationError::ExpiredTTL => "expired TTL",
-            ValidationError::Crypto(err) => return err.fmt(f),
-        };
-        write!(f, "{}", printable)
-    }
-}
-
-impl Into<ValidationError> for CryptoError {
-    fn into(self) -> ValidationError {
-        ValidationError::Crypto(self)
-    }
-}
 
 #[derive(Debug)]
 pub enum ServerError {
@@ -96,47 +67,6 @@ impl From<ValidationError> for ServerError {
     }
 }
 
-impl error::ResponseError for CryptoError {
-    fn error_response(&self) -> HttpResponse {
-        match self {
-            CryptoError::PubkeyDeserialization => HttpResponse::BadRequest(),
-            CryptoError::SigDeserialization => HttpResponse::BadRequest(),
-            CryptoError::Verification => HttpResponse::BadRequest(),
-        }
-        .body(self.to_string())
-    }
-}
-
-impl error::ResponseError for ValidationError {
-    fn error_response(&self) -> HttpResponse {
-        match self {
-            ValidationError::Crypto(err_inner) => return err_inner.error_response(),
-            ValidationError::KeyType => HttpResponse::BadRequest(),
-            ValidationError::Preimage => HttpResponse::BadRequest(),
-            ValidationError::Outdated => HttpResponse::BadRequest(),
-            ValidationError::ExpiredTTL => HttpResponse::BadRequest(),
-        }
-        .body(self.to_string())
-    }
-}
-
-impl error::ResponseError for ServerError {
-    fn error_response(&self) -> HttpResponse {
-        match self {
-            ServerError::Validation(err) => err.error_response(),
-            // Do not yield sensitive information to clients
-            ServerError::DB(_) => HttpResponse::InternalServerError().body("internal db error"),
-            ServerError::NotFound => HttpResponse::NotFound().body(self.to_string()),
-            ServerError::MetadataDecode => HttpResponse::BadRequest().body(self.to_string()),
-            ServerError::PayloadDecode => HttpResponse::BadRequest().body(self.to_string()),
-            ServerError::UnsupportedSigScheme => HttpResponse::BadRequest().body(self.to_string()),
-            ServerError::Crypto(err) => err.error_response(),
-            ServerError::Payment(err) => err.error_response(),
-            ServerError::Address(err) => HttpResponse::BadRequest().body(err.to_string()),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum PaymentError {
     Content,
@@ -188,28 +118,5 @@ impl fmt::Display for PaymentError {
             PaymentError::MismatchedNetwork => "address mismatched with node network",
         };
         write!(f, "{}", printable)
-    }
-}
-
-impl error::ResponseError for PaymentError {
-    fn error_response(&self) -> HttpResponse {
-        match self {
-            PaymentError::Accept => HttpResponse::NotAcceptable(),
-            PaymentError::Content => HttpResponse::UnsupportedMediaType(),
-            PaymentError::NoMerchantDat => HttpResponse::BadRequest(),
-            PaymentError::Payload => HttpResponse::BadRequest(),
-            PaymentError::Decode => HttpResponse::BadRequest(),
-            PaymentError::InvalidMerchantDat => HttpResponse::BadRequest(),
-            PaymentError::InvalidAuth => HttpResponse::PaymentRequired(),
-            PaymentError::NoToken => HttpResponse::PaymentRequired(),
-            PaymentError::URIMalformed => HttpResponse::BadRequest(),
-            PaymentError::NoTx => HttpResponse::BadRequest(),
-            PaymentError::TxDeserialize(_) => HttpResponse::BadRequest(),
-            PaymentError::InvalidOutputs => HttpResponse::BadRequest(),
-            PaymentError::InvalidTx => HttpResponse::BadRequest(),
-            PaymentError::MismatchedNetwork => HttpResponse::BadRequest(),
-            PaymentError::AddrFetchFailed => HttpResponse::InternalServerError(),
-        }
-        .body(self.to_string())
     }
 }

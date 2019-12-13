@@ -1,7 +1,5 @@
-pub mod authentication;
 pub mod ecdsa;
 pub mod errors;
-pub mod token;
 
 use errors::CryptoError;
 

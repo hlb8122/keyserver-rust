@@ -1,5 +1,5 @@
-mod client;
-pub mod tx_stream;
+// mod client;
+// pub mod tx_stream;
 
 pub const PRICE: u64 = 5;
 
@@ -10,11 +10,12 @@ use std::{
 };
 
 use bitcoin::{Transaction, TxOut};
+use cashweb_protobuf::bip70::Output;
 use serde::Deserialize;
 
-use crate::{crypto::Address, models::Output, SETTINGS};
+use crate::{crypto::Address, SETTINGS};
 
-pub use client::BitcoinClient;
+// pub use client::BitcoinClient;
 
 const KEYSERVER_PREFIX: &[u8; 9] = b"keyserver";
 

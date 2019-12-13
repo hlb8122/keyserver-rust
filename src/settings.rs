@@ -1,6 +1,6 @@
 use clap::App;
 use config::{Config, ConfigError, File};
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 use crate::bitcoin::Network;
 

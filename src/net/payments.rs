@@ -356,7 +356,7 @@ mod tests {
     use crate::{
         bitcoin::PRICE,
         crypto::Base58Codec,
-        db::KeyDB,
+        db::Database,
         models::PaymentRequest,
         net::{jsonrpc_client::JsonClient, tests::generate_address_metadata, *},
     };
@@ -435,7 +435,7 @@ mod tests {
     #[test]
     fn test_put_no_token() {
         // Init db
-        let key_db = KeyDB::try_new("./test_db/no_token").unwrap();
+        let key_db = Database::try_new("./test_db/no_token").unwrap();
 
         // Init wallet
         let wallet_state = WalletState::default();
@@ -493,7 +493,7 @@ mod tests {
     #[test]
     fn test_put_payment() {
         // Init db
-        let key_db = KeyDB::try_new("./test_db/payment").unwrap();
+        let key_db = Database::try_new("./test_db/payment").unwrap();
 
         // Init wallet
         let wallet_state = WalletState::default();
