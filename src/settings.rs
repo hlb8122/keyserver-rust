@@ -1,4 +1,4 @@
-use clap::{crate_author, crate_description, crate_version, App};
+use clap::{crate_authors, crate_description, crate_version, App};
 use config::{Config, ConfigError, File};
 use serde::Deserialize;
 
@@ -15,6 +15,7 @@ pub struct Settings {
     pub secret: String,
     pub db_path: String,
     pub network: Network,
+    pub root_message: String,
 }
 
 impl Settings {
@@ -24,8 +25,8 @@ impl Settings {
         // Set defaults and set CLI
         let yaml = load_yaml!("cli.yml");
         let matches = App::from_yaml(yaml)
-            .version(crate_version!("\n"))
-            .author(crate_author!())
+            .version(crate_version!())
+            .author(crate_authors!("\n"))
             .about(crate_description!())
             .get_matches();
         let home_dir = match dirs::home_dir() {
@@ -43,6 +44,7 @@ impl Settings {
         default_db.push(".keyserver-rust/db");
         s.set_default("db_path", default_db.to_str())?;
         s.set_default("network", "regnet")?;
+        s.set_default("root_message", "You have found the keyserver.")?;
 
         // Load config from file
         let mut default_config = home_dir.clone();
@@ -94,6 +96,11 @@ impl Settings {
         // Set the bitcoin network
         if let Some(db_path) = matches.value_of("network") {
             s.set("network", db_path)?;
+        }
+
+        // Set the keyserver message
+        if let Some(root_message) = matches.value_of("root-message") {
+            s.set("root_message", root_message)?;
         }
 
         s.try_into()
