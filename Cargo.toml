@@ -3,6 +3,7 @@ name = "keyserver"
 version = "0.1.0"
 authors = ["Harry L. Barber <hlbarber93@gmail.com>"]
 edition = "2018"
+description = "Cash:web Keyserver is a BCH-based key and metadata server"
 
 [dependencies]
 async-trait = "0.1.21"
@@ -17,7 +18,6 @@ clap = { version = "2.33.0", features = ["yaml"] }
 config = "0.10.1"
 dirs = "2.0.2"
 futures-core = "0.3.1"
-# futures-util = "0.3.1"
 hex = "0.4.0"
 hyper = "0.13.0"
 lazy_static = "1.4.0"

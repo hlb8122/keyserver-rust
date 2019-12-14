@@ -1,11 +1,14 @@
-use crate::db::Database;
+use crate::db::{services::*, Database};
 
 pub struct Keyserver {
-    db: Database,
+    getter: MetadataGetter,
+    putter: MetadataPutter,
 }
 
 impl Keyserver {
     pub fn new(db: Database) -> Self {
-        Keyserver { db }
+        let getter = MetadataGetter::new(db.clone());
+        let putter = MetadataPutter::new(db);
+        Keyserver { getter, putter }
     }
 }

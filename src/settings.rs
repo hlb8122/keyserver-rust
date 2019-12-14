@@ -1,4 +1,4 @@
-use clap::App;
+use clap::{crate_author, crate_description, crate_version, App};
 use config::{Config, ConfigError, File};
 use serde::Deserialize;
 
@@ -21,9 +21,13 @@ impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         let mut s = Config::new();
 
-        // Set defaults
+        // Set defaults and set CLI
         let yaml = load_yaml!("cli.yml");
-        let matches = App::from_yaml(yaml).get_matches();
+        let matches = App::from_yaml(yaml)
+            .version(crate_version!("\n"))
+            .author(crate_author!())
+            .about(crate_description!())
+            .get_matches();
         let home_dir = match dirs::home_dir() {
             Some(some) => some,
             None => return Err(ConfigError::Message("no home directory".to_string())),

@@ -2,7 +2,6 @@
 extern crate clap;
 
 pub mod authentication;
-pub mod bitcoin;
 pub mod crypto;
 pub mod db;
 pub mod server;
@@ -27,12 +26,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Open DB
     let key_db = Database::try_new(&SETTINGS.db_path)?;
-
-    // Init ZMQ
-    // let (tx_stream, connection) =
-    //     tx_stream::get_tx_stream(&format!("tcp://{}:{}", SETTINGS.node_ip, SETTINGS.zmq_port));
-    // let key_stream = tx_stream::extract_details(tx_stream);
-    // tokio::spawn(connection.map_err(|e| error!("{:?}", e)));
 
     // Init server
     tracing::info!(message = "starting server", addr = %SETTINGS.bind);
