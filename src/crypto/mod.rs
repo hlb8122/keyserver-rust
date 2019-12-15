@@ -4,7 +4,6 @@ pub mod errors;
 use errors::CryptoError;
 
 use bitcoin_hashes::{hash160::Hash as Hash160, Hash};
-pub use bitcoincash_addr::*;
 
 pub trait PublicKey
 where

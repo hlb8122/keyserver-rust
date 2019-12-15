@@ -2,11 +2,12 @@ pub mod errors;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use bitcoin_hashes::{sha256, Hash};
+use bitcoincash_addr::Address;
+use cashweb_protobuf::address_metadata::{AddressMetadata, Payload};
+
 use crate::crypto::*;
 use errors::ValidationError;
-
-use bitcoin_hashes::{sha256, Hash};
-use cashweb_protobuf::address_metadata::{AddressMetadata, Payload};
 
 pub fn expired(payload: &Payload) -> bool {
     let timestamp = SystemTime::now()

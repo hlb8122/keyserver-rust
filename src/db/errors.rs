@@ -1,9 +1,9 @@
 use bitcoincash_addr::{Base58Error, CashAddrDecodingError};
-use hyper::{Body, Response};
+use hyper::{Body, Error as HyperError, Response};
 use prost::DecodeError;
 use rocksdb::Error as RocksError;
 
-pub enum PutError {}
+use crate::authentication::errors::ValidationError;
 
 pub enum GetError {
     Address(CashAddrDecodingError, Base58Error),
@@ -44,5 +44,43 @@ impl From<RocksError> for GetError {
 impl From<DecodeError> for GetError {
     fn from(err: DecodeError) -> Self {
         GetError::Decode(err)
+    }
+}
+
+pub enum PutError {
+    Address(CashAddrDecodingError, Base58Error),
+    DB(RocksError),
+    Buffer(HyperError),
+    MetadataDecode(prost::DecodeError),
+    Outdated,
+    PayloadDecode(prost::DecodeError),
+    UnsupportedSigScheme,
+    Validation(ValidationError),
+}
+
+impl From<(CashAddrDecodingError, Base58Error)> for PutError {
+    fn from((cash_err, base58_err): (CashAddrDecodingError, Base58Error)) -> Self {
+        PutError::Address(cash_err, base58_err)
+    }
+}
+
+impl From<RocksError> for PutError {
+    fn from(err: RocksError) -> Self {
+        PutError::DB(err)
+    }
+}
+
+
+impl Into<Response<Body>> for PutError {
+    fn into(self) -> Response<Body> {
+        match self {
+            PutError::Address(cashaddr_err, base58_err) => Response::builder()
+                .status(400)
+                .body(Body::from(format!("{} and {}", cashaddr_err, base58_err))),
+            PutError::DB(_) => Response::builder().status(500).body(Body::empty()),
+            // TODO: Rest of them
+            _ => Response::builder().status(404).body(Body::empty()),
+        }
+        .unwrap()
     }
 }

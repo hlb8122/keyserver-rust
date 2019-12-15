@@ -1,15 +1,20 @@
 use std::pin::Pin;
 
 use bitcoincash_addr::Address;
+use cashweb_protobuf::address_metadata::{AddressMetadata, Payload};
 use futures_core::{
     task::{Context, Poll},
     Future,
 };
-use hyper::{Body, Response};
+use hyper::{body, Body};
 use prost::Message as _;
 use tower_service::Service;
 
 use super::{errors::*, Database};
+use crate::{
+    authentication::{errors::ValidationError, validate},
+    crypto::ecdsa::*,
+};
 
 #[derive(Clone)]
 pub struct MetadataGetter {
@@ -27,7 +32,7 @@ impl Service<String> for MetadataGetter {
     type Error = GetError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
@@ -51,6 +56,7 @@ impl Service<String> for MetadataGetter {
     }
 }
 
+#[derive(Clone)]
 pub struct MetadataPutter {
     db: Database,
 }
@@ -61,12 +67,50 @@ impl MetadataPutter {
     }
 }
 
-impl Service<String, > for MetadataPutter {
+impl Service<(String, Body)> for MetadataPutter {
     type Response = ();
     type Error = PutError;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, (addr_str, body): (String, Body)) -> Self::Future {
+        let db_inner = self.db.clone();
+        let fut = async move {
+            // Convert address
+            let addr = Address::decode(&addr_str)?;
+
+            // Decode metadata
+            let body_raw = body::aggregate(body).await.map_err(PutError::Buffer)?;
+            let metadata = AddressMetadata::decode(body_raw).map_err(PutError::MetadataDecode)?;
+
+            // Grab metadata from DB
+            match metadata.scheme {
+                1 => validate::<Secp256k1>(&addr, &metadata).map_err(PutError::Validation)?,
+                _ => return Err(PutError::UnsupportedSigScheme),
+            }
+
+            // Decode payload
+            let raw_payload = &metadata.serialized_payload[..];
+            let payload = Payload::decode(raw_payload).map_err(PutError::PayloadDecode)?;
+
+            if let Some(old_metadata) = db_inner.get(&addr)? {
+                // This panics if stored bytes are malformed
+                let old_payload = Payload::decode(&old_metadata.serialized_payload[..]).unwrap();
+                if payload.timestamp < old_payload.timestamp {
+                    // Timestamp is outdated
+                    return Err(PutError::Outdated);
+                } // TODO: Check if = and use lexicographical
+            }
+
+            // Put to database
+            db_inner.put(&addr, &metadata)?;
+
+            // Respond
+            Ok(())
+        };
+        Box::pin(fut)
     }
 }

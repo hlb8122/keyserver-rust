@@ -9,22 +9,19 @@ use hyper::{http::Method, Body, Error as HyperError, Request, Response};
 use tower_service::Service;
 use tower_util::ServiceExt;
 
-use crate::{
-    db::{errors::*, Database},
-    SETTINGS,
-};
+use crate::{db::errors::*, SETTINGS};
 
 const ROOT: &'static str = "";
 const KEY_PATH: &'static str = "keys";
 
-pub struct Keyserver<G> {
+pub struct Keyserver<G, P> {
     getter: G,
-    // putter: MetadataPutter,
+    putter: P,
 }
 
-impl<G> Keyserver<G> {
-    pub fn new(getter: G, putter: G) -> Self {
-        Keyserver { getter }
+impl<G, P> Keyserver<G, P> {
+    pub fn new(getter: G, putter: P) -> Self {
+        Keyserver { getter, putter }
     }
 }
 
@@ -38,10 +35,12 @@ async fn root_message() -> Result<Response<Body>, HyperError> {
     Ok(response)
 }
 
-impl<G> Service<Request<Body>> for Keyserver<G>
+impl<G, P> Service<Request<Body>> for Keyserver<G, P>
 where
     G: Service<String, Response = Vec<u8>, Error = GetError> + Clone + Send + 'static,
-    G::Future: Send,
+    G::Future: Send + 'static,
+    P: Service<(String, Body), Response = (), Error = PutError> + Clone + Send + 'static,
+    P::Future: Send,
 {
     type Response = Response<Body>;
     type Error = HyperError;
@@ -78,6 +77,7 @@ where
                 // Match method
                 match *request.method() {
                     Method::GET => {
+                        // Call the PUT metadata service
                         let response =
                             self.getter
                                 .clone()
@@ -90,7 +90,21 @@ where
                                 });
                         Box::pin(response)
                     }
-                    // Method::PUT => self.getter.clone().call(key.to_string()),
+                    Method::PUT => {
+                        // Call the PUT metadata service
+                        // let response = self
+                        //     .putter
+                        //     .clone()
+                        //     .oneshot((key.to_string(), request.into_body()))
+                        //     .map(|response| match response {
+                        //         Ok(metadata) => {
+                        //             Ok(Response::builder().body(Body::empty()).unwrap())
+                        //         }
+                        //         Err(err) => Ok(err.into()),
+                        //     });
+                        // Box::pin(response)
+                        unreachable!()
+                    }
                     _ => Box::pin(not_found()),
                 }
             } else {
@@ -107,7 +121,7 @@ pub struct MakeKeyserver<G, P> {
     putter: P,
 }
 
-impl<G> MakeKeyserver<G, P> {
+impl<G, P> MakeKeyserver<G, P> {
     pub fn new(getter: G, putter: P) -> Self {
         MakeKeyserver { getter, putter }
     }
@@ -116,8 +130,9 @@ impl<G> MakeKeyserver<G, P> {
 impl<T, G, P> Service<T> for MakeKeyserver<G, P>
 where
     G: Clone,
+    P: Clone,
 {
-    type Response = Keyserver<G>;
+    type Response = Keyserver<G, P>;
     type Error = std::io::Error;
     type Future = future::Ready<Result<Self::Response, Self::Error>>;
 
@@ -126,7 +141,7 @@ where
     }
 
     fn call(&mut self, _: T) -> Self::Future {
-        let keyserver = Keyserver::new(self.db.clone(), self.get.clone());
+        let keyserver = Keyserver::new(self.getter.clone(), self.putter.clone());
 
         future::ok(keyserver)
     }

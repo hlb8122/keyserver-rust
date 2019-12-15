@@ -3,11 +3,12 @@ pub mod services;
 
 use std::sync::Arc;
 
+use bitcoincash_addr::Address;
 use cashweb_protobuf::address_metadata::{AddressMetadata, Payload};
 use prost::Message;
 use rocksdb::{CompactionDecision, Error, Options, DB};
 
-use crate::{authentication::expired, crypto::Address};
+use crate::authentication::expired;
 
 fn ttl_filter(_level: u32, _key: &[u8], value: &[u8]) -> CompactionDecision {
     // This panics if the bytes stored are fucked
@@ -62,63 +63,5 @@ impl Database {
         } else {
             metadata_res
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use secp256k1::{rand, Secp256k1};
-
-    use crate::crypto::{ecdsa::Secp256k1PublicKey, *};
-
-    use super::*;
-
-    #[test]
-    fn test_ttl_ok() {
-        // Open DB
-        let key_db = Database::try_new("./test_db/ttl_ok").unwrap();
-
-        // Generate metadata with 10 sec TTL
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
-        let payload = Payload {
-            timestamp,
-            ttl: 10,
-            entries: vec![],
-        };
-        let mut serialized_payload = Vec::with_capacity(payload.encoded_len());
-        payload.encode(&mut serialized_payload).unwrap();
-        let metadata = AddressMetadata {
-            pub_key: vec![],
-            serialized_payload,
-            signature: vec![],
-            scheme: 1,
-        };
-
-        // Generate address
-        let secp = Secp256k1::new();
-        let (_, pk) = secp.generate_keypair(&mut rand::thread_rng());
-        let public_key = Secp256k1PublicKey(pk);
-        let addr = Address {
-            body: public_key.to_raw_address(),
-            ..Default::default()
-        };
-
-        // Put to database
-        key_db.put(&addr, &metadata).unwrap();
-
-        // Get from database before TTL
-        assert!(key_db.get(&addr).unwrap().is_some());
-
-        // Wait until TTL is over
-        std::thread::sleep(std::time::Duration::from_secs(12));
-
-        // Force compactification
-        key_db.0.compact_range::<&[u8], &[u8]>(None, None);
-
-        // Get from database after TTL
-        assert!(key_db.get(&addr).unwrap().is_none());
     }
 }
