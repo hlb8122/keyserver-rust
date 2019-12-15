@@ -23,8 +23,7 @@ pub struct Keyserver<G> {
 }
 
 impl<G> Keyserver<G> {
-    pub fn new(getter: G) -> Self {
-        // let putter = MetadataPutter::new(db);
+    pub fn new(getter: G, putter: G) -> Self {
         Keyserver { getter }
     }
 }
