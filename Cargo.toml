@@ -28,8 +28,10 @@ secp256k1 = "0.17.1"
 serde = { version = "1.0.103", features = ["derive"] }
 subtle = "2.2.2"
 tokio = { version = "0.2.4", features = ["macros", "rt-core"] }
-tower-service = "0.3.0"
+tower = { git = "https://github.com/tower-rs/tower" }
 tower-layer = "0.3.0"
+tower-service = "0.3.0"
+tower-util = { git = "https://github.com/tower-rs/tower" }
 tracing = "0.1.10"
 tracing-subscriber =  { version = "0.2.0-alpha.2", features = ["tracing-log"] }
 tracing-attributes = "0.1.5"

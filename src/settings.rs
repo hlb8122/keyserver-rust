@@ -43,7 +43,7 @@ impl Settings {
         let mut default_db = home_dir.clone();
         default_db.push(".keyserver-rust/db");
         s.set_default("db_path", default_db.to_str())?;
-        s.set_default("network", "regnet")?;
+        s.set_default("network", "Regnet")?;
         s.set_default("root_message", "You have found the keyserver.")?;
 
         // Load config from file
@@ -94,8 +94,8 @@ impl Settings {
         }
 
         // Set the bitcoin network
-        if let Some(db_path) = matches.value_of("network") {
-            s.set("network", db_path)?;
+        if let Some(network) = matches.value_of("network") {
+            s.set("network", network)?;
         }
 
         // Set the keyserver message

@@ -10,8 +10,13 @@ pub mod settings;
 
 use hyper::Server;
 use lazy_static::lazy_static;
+use tower::builder::ServiceBuilder;
 
-use crate::{db::Database, settings::Settings, server::MakeKeyserver};
+use crate::{
+    db::{services::*, Database},
+    server::MakeKeyserver,
+    settings::Settings,
+};
 
 lazy_static! {
     pub static ref SETTINGS: Settings = Settings::new().expect("couldn't load config");
@@ -28,10 +33,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Open DB
     let db = Database::try_new(&SETTINGS.db_path)?;
 
-    // Init server
+    // Create services
+    let getter = ServiceBuilder::new().service(MetadataGetter::new(db.clone()));
+    let putter = ServiceBuilder::new().service(MetadataPutter::new(db));
+
+    // Start server
     tracing::info!(message = "starting server", addr = %SETTINGS.bind);
     let addr = SETTINGS.bind.parse()?;
-    let server = Server::bind(&addr).serve(MakeKeyserver::new(db));
+
+    let make_keyserver = MakeKeyserver::new(getter, putter);
+    let server = Server::bind(&addr).serve(make_keyserver);
+    server.await?;
 
     Ok(())
 }
