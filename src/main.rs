@@ -34,8 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db = Database::try_new(&SETTINGS.db_path)?;
 
     // Create services
-    let getter = ServiceBuilder::new().service(MetadataGetter::new(db.clone()));
-    let putter = ServiceBuilder::new().service(MetadataPutter::new(db));
+    let getter = ServiceBuilder::new().service(db.clone());
+    let putter = ServiceBuilder::new().service(db);
 
     // Start server
     tracing::info!(message = "starting server", addr = %SETTINGS.bind);

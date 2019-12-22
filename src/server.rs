@@ -77,7 +77,7 @@ where
                 // Match method
                 match *request.method() {
                     Method::GET => {
-                        // Call the PUT metadata service
+                        // Call the GET metadata service
                         let response =
                             self.getter
                                 .clone()
@@ -92,18 +92,17 @@ where
                     }
                     Method::PUT => {
                         // Call the PUT metadata service
-                        // let response = self
-                        //     .putter
-                        //     .clone()
-                        //     .oneshot((key.to_string(), request.into_body()))
-                        //     .map(|response| match response {
-                        //         Ok(metadata) => {
-                        //             Ok(Response::builder().body(Body::empty()).unwrap())
-                        //         }
-                        //         Err(err) => Ok(err.into()),
-                        //     });
-                        // Box::pin(response)
-                        unreachable!()
+                        let response = self
+                            .putter
+                            .clone()
+                            .oneshot((key.to_string(), request.into_body()))
+                            .map(|response| match response {
+                                Ok(metadata) => {
+                                    Ok(Response::builder().body(Body::empty()).unwrap())
+                                }
+                                Err(err) => Ok(err.into()),
+                            });
+                        Box::pin(response)
                     }
                     _ => Box::pin(not_found()),
                 }
