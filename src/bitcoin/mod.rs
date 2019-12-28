@@ -19,6 +19,7 @@ pub use client::BitcoinClient;
 const KEYSERVER_PREFIX: &[u8; 9] = b"keyserver";
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum Network {
     Mainnet = 0,
     Testnet = 1,
