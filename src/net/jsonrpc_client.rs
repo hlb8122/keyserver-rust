@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
-use futures::{future, Future};
+use futures::{future, prelude::*};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, value::from_value, Value};
 
@@ -39,7 +39,7 @@ pub struct JsonClient {
     endpoint: String,
     username: String,
     password: String,
-    client: reqwest::r#async::Client,
+    client: reqwest::Client,
     nonce: AtomicUsize,
 }
 
@@ -49,41 +49,30 @@ impl JsonClient {
             endpoint,
             username,
             password,
-            client: reqwest::r#async::Client::new(),
+            client: reqwest::Client::new(),
             nonce: AtomicUsize::new(0),
         }
     }
 
     // Sends a request to a async client
-    pub fn send_request(
-        &self,
-        request: &Request,
-    ) -> Box<dyn Future<Item = Response, Error = ClientError> + Send> {
+    pub async fn send_request(&self, request: &Request) -> Result<Response, ClientError> {
         let mut request_builder = self.client.post(&self.endpoint);
 
         request_builder =
             request_builder.basic_auth(self.username.clone(), Some(self.password.clone()));
         let request_id = request.id.clone();
-        let reqwest_response = request_builder
+        let raw_response = request_builder
             .json(request)
             .send()
-            .map_err(ClientError::from);
+            .await
+            .map_err(ClientError::from)?;
 
-        // Parse response
-        let response = reqwest_response.and_then(move |mut raw_resp| {
-            let parsed_resp = raw_resp.json();
-            parsed_resp
-                .map_err(ClientError::from)
-                .and_then(move |r: Response| {
-                    if r.id != request_id {
-                        future::err(ClientError::NonceMismatch)
-                    } else {
-                        future::ok(r)
-                    }
-                })
-        });
-
-        Box::new(response)
+        let parsed_resp: Response = raw_response.json().await.map_err(ClientError::from)?;
+        if parsed_resp.id != request_id {
+            Err(ClientError::NonceMismatch).into()
+        } else {
+            Ok(parsed_resp)
+        }
     }
 
     // Builds a request

@@ -5,7 +5,7 @@ pub mod peer;
 
 use actix_web::{web, HttpResponse};
 use bytes::BytesMut;
-use futures::{future::Future, stream::Stream};
+use futures::prelude::*;
 use prost::Message;
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
 
 use errors::ServerError;
 
-pub fn get_key(
+pub async fn get_key(
     addr_str: web::Path<String>,
     db_data: web::Data<KeyDB>,
 ) -> Result<HttpResponse, ServerError> {
@@ -34,47 +34,40 @@ pub fn get_key(
     Ok(HttpResponse::Ok().body(raw_payload))
 }
 
-pub fn put_key(
+pub async fn put_key(
     addr_str: web::Path<String>,
-    payload: web::Payload,
+    mut payload: web::Payload,
     db_data: web::Data<KeyDB>,
-) -> Box<dyn Future<Item = HttpResponse, Error = ServerError>> {
+) -> Result<HttpResponse, ServerError> {
     // Decode metadata
-    let body_raw = payload.map_err(|_| ServerError::MetadataDecode).fold(
-        BytesMut::new(),
-        move |mut body, chunk| {
-            body.extend_from_slice(&chunk);
-            Ok::<_, ServerError>(body)
-        },
-    );
-    let metadata = body_raw.and_then(|metadata_raw| {
-        AddressMetadata::decode(metadata_raw).map_err(|_| ServerError::MetadataDecode)
-    });
+    let mut metadata_raw = BytesMut::new();
+    while let Some(item) = payload.next().await {
+        metadata_raw.extend_from_slice(&item.map_err(|_| ServerError::MetadataDecode)?);
+    }
+    let metadata =
+        AddressMetadata::decode(&metadata_raw[..]).map_err(|_| ServerError::MetadataDecode)?;
 
-    let response = metadata.and_then(move |metadata| {
-        // Convert address
-        let addr = Address::decode(&addr_str)?;
+    // Convert address
+    let addr = Address::decode(&addr_str)?;
 
-        // TODO: Support Schnorr
-        match metadata.scheme {
-            1 => validate::<Secp256k1>(&addr, &metadata).map_err(ServerError::Validation)?,
-            _ => return Err(ServerError::UnsupportedSigScheme),
-        }
+    // TODO: Support Schnorr
+    match metadata.scheme {
+        1 => validate::<Secp256k1>(&addr, &metadata).map_err(ServerError::Validation)?,
+        _ => return Err(ServerError::UnsupportedSigScheme),
+    }
 
-        // Decode payload
-        let raw_payload = &metadata.serialized_payload;
-        let payload = Payload::decode(raw_payload).map_err(|_| ServerError::PayloadDecode)?;
+    // Decode payload
+    let raw_payload = &metadata.serialized_payload;
+    let payload = Payload::decode(&raw_payload[..]).map_err(|_| ServerError::PayloadDecode)?;
 
-        // Check age
-        db_data.check_timestamp(&addr, &payload)??;
+    // Check age
+    db_data.check_timestamp(&addr, &payload)??;
 
-        // Put to database
-        db_data.put(&addr, &metadata)?;
+    // Put to database
+    db_data.put(&addr, &metadata)?;
 
-        // Respond
-        Ok(HttpResponse::Ok().finish())
-    });
-    Box::new(response)
+    // Respond
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[cfg(test)]

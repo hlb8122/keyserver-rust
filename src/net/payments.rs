@@ -1,4 +1,5 @@
 use std::{
+    pin::Pin,
     str,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -16,9 +17,9 @@ use bitcoin::{util::psbt::serialize::Deserialize, Transaction};
 use bitcoincash_addr::{Address, HashType};
 use bytes::BytesMut;
 use futures::{
-    future::{err, ok, Either, Future, FutureResult},
-    stream::Stream,
-    Poll,
+    future::{Ready, ready},
+    prelude::*,
+    task::{Context, Poll},
 };
 use prost::Message;
 use serde_derive::Deserialize;
@@ -44,103 +45,86 @@ pub struct TokenQuery {
 }
 
 /// Payment handler
-pub fn payment_handler(
+pub async fn payment_handler(
     req: HttpRequest,
-    payload: web::Payload,
+    mut payload: web::Payload,
     data: web::Data<(BitcoinClient, WalletState)>,
-) -> Box<dyn Future<Item = HttpResponse, Error = ServerError>> {
+) -> Result<HttpResponse, ServerError> {
     // Check headers
     let headers = req.headers();
     if headers.get(CONTENT_TYPE)
         != Some(&HeaderValue::from_str("application/bitcoincash-payment").unwrap())
     {
-        return Box::new(err(PaymentError::Accept.into()));
+        return Err(PaymentError::Accept.into());
     }
     if headers.get(ACCEPT)
         != Some(&HeaderValue::from_str("application/bitcoincash-paymentack").unwrap())
     {
-        return Box::new(err(PaymentError::Content.into()));
+        return Err(PaymentError::Content.into());
     }
 
     // Read and parse payment proto
-    let body_raw =
-        payload
-            .map_err(|_| PaymentError::Payload)
-            .fold(BytesMut::new(), move |mut body, chunk| {
-                body.extend_from_slice(&chunk);
-                Ok::<_, PaymentError>(body)
-            });
-    let payment = body_raw
-        .and_then(|payment_raw| Payment::decode(payment_raw).map_err(|_| PaymentError::Decode));
+    let mut payment_raw = BytesMut::new();
+    while let Some(item) = payload.next().await {
+        payment_raw.extend_from_slice(&item.map_err(|_| ServerError::PayloadDecode)?);
+    }
+    let payment = Payment::decode(&payment_raw[..]).map_err(|_| PaymentError::Decode)?;
 
-    let payment_ack = payment
-        .and_then(move |payment| {
-            // Parse tx
-            let tx_raw = match payment.transactions.get(0) {
-                Some(some) => some,
-                None => return Either::A(err(PaymentError::NoTx)),
-            };
-            // Assume first tx
-            let tx = match Transaction::deserialize(tx_raw) {
-                Ok(ok) => ok,
-                Err(e) => return Either::A(err(PaymentError::from(e))),
-            };
+    // Parse tx
+    let tx_raw = match payment.transactions.get(0) {
+        Some(some) => some,
+        None => return Err(PaymentError::NoTx.into()),
+    };
 
-            // Check outputs
-            let wallet_data = &data.1;
-            if !wallet_data.check_outputs(tx) {
-                return Either::A(err(PaymentError::InvalidOutputs));
-            }
+    // Assume first tx
+    let tx = Transaction::deserialize(tx_raw).map_err(|err| PaymentError::from(err))?;
 
-            // Send tx
-            let bitcoin_client = &data.0;
-            Either::B(
-                bitcoin_client
-                    .send_tx(tx_raw)
-                    .and_then(|_txid| {
-                        // Create payment ack
-                        let memo = Some("Thanks for your custom!".to_string());
-                        Ok(PaymentAck { payment, memo })
-                    })
-                    .map_err(|_| PaymentError::InvalidTx),
-            )
-        })
-        .map_err(ServerError::Payment);
+    // Check outputs
+    let wallet_data = &data.1;
+    if !wallet_data.check_outputs(tx) {
+        return Err(ServerError::Payment(PaymentError::InvalidOutputs));
+    }
 
-    let response = payment_ack.and_then(|ack| {
-        // Encode payment ack
-        let mut raw_ack = Vec::with_capacity(ack.encoded_len());
-        ack.encode(&mut raw_ack).unwrap();
+    // Send tx
+    let bitcoin_client = &data.0;
+    let tx_id = bitcoin_client
+        .send_tx(tx_raw)
+        .await
+        .map_err(|_| PaymentError::InvalidTx)?;
 
-        // Get merchant data
-        let merchant_data = ack
-            .payment
-            .merchant_data
-            .ok_or(PaymentError::NoMerchantDat)?;
+    // Create payment ack
+    let memo = Some("Thanks for your custom!".to_string());
+    let payment_ack = PaymentAck { payment, memo };
 
-        // Generate token
-        let url_safe_config = base64::Config::new(base64::CharacterSet::UrlSafe, false);
-        let token = base64::encode_config(
-            &generate_token(&merchant_data, SETTINGS.secret.as_bytes()),
-            url_safe_config,
-        );
+    // Encode payment ack
+    let mut raw_ack = Vec::with_capacity(payment_ack.encoded_len());
+    payment_ack.encode(&mut raw_ack).unwrap();
 
-        // Generate paymentredirect
-        let mut redirect_url = Url::parse(
-            str::from_utf8(&merchant_data).map_err(|_| PaymentError::InvalidMerchantDat)?,
-        )
-        .map_err(|_| PaymentError::InvalidMerchantDat)?;
-        redirect_url.set_query(Some(&format!("code={}", token)));
+    // Get merchant data
+    let merchant_data = payment_ack
+        .payment
+        .merchant_data
+        .ok_or(PaymentError::NoMerchantDat)?;
 
-        // Generate response
-        Ok(HttpResponse::Accepted()
-            .header(LOCATION, redirect_url.into_string())
-            .header(AUTHORIZATION, format!("POP {}", token))
-            .header(PRAGMA, "no-cache")
-            .body(raw_ack))
-    });
+    // Generate token
+    let url_safe_config = base64::Config::new(base64::CharacterSet::UrlSafe, false);
+    let token = base64::encode_config(
+        &generate_token(&merchant_data, SETTINGS.secret.as_bytes()),
+        url_safe_config,
+    );
 
-    Box::new(response)
+    // Generate paymentredirect
+    let mut redirect_url =
+        Url::parse(str::from_utf8(&merchant_data).map_err(|_| PaymentError::InvalidMerchantDat)?)
+            .map_err(|_| PaymentError::InvalidMerchantDat)?;
+    redirect_url.set_query(Some(&format!("code={}", token)));
+
+    // Generate response
+    Ok(HttpResponse::Accepted()
+        .header(LOCATION, redirect_url.into_string())
+        .header(AUTHORIZATION, format!("POP {}", token))
+        .header(PRAGMA, "no-cache")
+        .body(raw_ack))
 }
 
 /*
@@ -164,14 +148,14 @@ where
     type Error = Error;
     type InitError = ();
     type Transform = CheckPaymentMiddleware<S>;
-    type Future = FutureResult<Self::Transform, Self::InitError>;
+    type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ok(CheckPaymentMiddleware {
+        ready(Ok(CheckPaymentMiddleware {
             service,
             client: self.0.clone(),
             wallet_state: self.1.clone(),
-        })
+        }))
     }
 }
 pub struct CheckPaymentMiddleware<S> {
@@ -188,159 +172,156 @@ where
     type Request = ServiceRequest;
     type Response = ServiceResponse<Body>;
     type Error = Error;
-    type Future = Box<dyn Future<Item = Self::Response, Error = Self::Error>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
-    fn poll_ready(&mut self) -> Poll<(), Self::Error> {
-        self.service.poll_ready()
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.service.poll_ready(cx)
     }
 
     fn call(&mut self, req: ServiceRequest) -> Self::Future {
-        // Only pay for put
-        match *req.method() {
-            Method::PUT => (),
-            _ => return Box::new(self.service.call(req)),
-        }
+        let fut = async move {
+            // Only pay for put
+            // match *req.method() {
+            //     Method::PUT => (),
+            //     _ => return self.service.call(req).await,
+            // }
 
-        // Get request data
-        let conn_info = req.connection_info().clone();
-        let scheme = conn_info.scheme().to_owned();
-        let host = conn_info.host().to_owned();
+            // Get request data
+            let conn_info = req.connection_info().clone();
+            let scheme = conn_info.scheme().to_owned();
+            let host = conn_info.host().to_owned();
 
-        // Grab token query from authorization header then query string
-        let token_str: String = match req.headers().get(AUTHORIZATION) {
-            Some(some) => match some.to_str() {
-                Ok(auth_str) => {
-                    if auth_str.len() >= 4 && &auth_str[0..4] == "POP " {
-                        auth_str[4..].to_string()
-                    } else {
-                        return Box::new(err(
-                            ServerError::Payment(PaymentError::InvalidAuth).into()
-                        ));
+            // Grab token query from authorization header then query string
+            let token_str: String = match req.headers().get(AUTHORIZATION) {
+                Some(some) => match some.to_str() {
+                    Ok(auth_str) => {
+                        if auth_str.len() >= 4 && &auth_str[0..4] == "POP " {
+                            auth_str[4..].to_string()
+                        } else {
+                            return Err(ServerError::Payment(PaymentError::InvalidAuth).into())
+                                .into();
+                        }
                     }
-                }
-                Err(_) => {
-                    return Box::new(err(ServerError::Payment(PaymentError::InvalidAuth).into()))
-                }
-            },
-            None => match web::Query::<TokenQuery>::from_query(req.query_string()) {
-                Ok(query) => query.code.clone(), // TODO: Remove this copy
-                Err(_) => {
+                    Err(_) => {
+                        return Err(ServerError::Payment(PaymentError::InvalidAuth).into()).into()
+                    }
+                },
+                None => {
+                    unreachable!();
                     // If no token found then generate invoice
 
                     // Valid interval
-                    let current_time = SystemTime::now();
-                    let expiry_time = current_time + Duration::from_secs(VALID_DURATION);
+                    // let current_time = SystemTime::now();
+                    // let expiry_time = current_time + Duration::from_secs(VALID_DURATION);
 
-                    // Get new addr and add to wallet
-                    let wallet_state_inner = self.wallet_state.clone();
-                    let new_addr =
-                        self.client
-                            .get_new_addr()
-                            .then(move |addr_opt| match addr_opt {
-                                Ok(addr_str) => {
-                                    let addr = CashAddrCodec::decode(&addr_str)
-                                        .map_err(ServerError::Address)?;
-                                    let network: Network = addr.network.clone().into();
-                                    if network != SETTINGS.network
-                                        || addr.hash_type != HashType::Key
-                                    {
-                                        return Err(ServerError::Payment(
-                                            PaymentError::MismatchedNetwork,
-                                        ))?; // TODO: Finer grained error here
-                                    }
-                                    let addr_raw = addr.into_body();
-                                    wallet_state_inner.add(addr_raw.clone());
-                                    Ok(addr_raw)
-                                }
-                                Err(_e) => {
-                                    Err(ServerError::Payment(PaymentError::AddrFetchFailed).into())
-                                }
-                            });
+                    // // Get new addr and add to wallet
+                    // let wallet_state_inner = self.wallet_state.clone();
+                    // let new_addr = self.client.get_new_addr().await;
 
-                    // Decode put address
-                    let uri = req.uri();
-                    let put_addr_path = uri.path();
-                    let put_addr_str = &put_addr_path[6..]; // TODO: This is super hacky
-                    let put_addr = match Address::decode(put_addr_str) {
-                        Ok(ok) => ok,
-                        Err(e) => return Box::new(err(ServerError::Address(e).into())),
-                    };
+                    // let addr_raw = match new_addr {
+                    //     Ok(addr_str) => {
+                    //         let addr =
+                    //             Address::decode(&addr_str).map_err(|(cash_err, base58_err)| {
+                    //                 ServerError::Address(cash_err, base58_err)
+                    //             })?;
+                    //         let network: Network = addr.network.clone().into();
+                    //         if network != SETTINGS.network || addr.hash_type != HashType::Key {
+                    //             return Err(ServerError::Payment(PaymentError::MismatchedNetwork))?;
+                    //             // TODO: Finer grained error here
+                    //         }
+                    //         let addr_raw = addr.into_body();
+                    //         wallet_state_inner.add(addr_raw.clone());
+                    //         addr_raw
+                    //     }
+                    //     Err(_) => {
+                    //         return Err(ServerError::Payment(PaymentError::AddrFetchFailed).into())
+                    //     }
+                    // };
 
-                    // Generate merchant URL
-                    let base_url = format!("{}://{}", scheme, host);
-                    let merchant_url = format!("{}{}", base_url, put_addr_path);
+                    // // Decode put address
+                    // let uri = req.uri();
+                    // let put_addr_path = uri.path();
+                    // let put_addr_str = &put_addr_path[6..]; // TODO: This is super hacky
+                    // let put_addr = match Address::decode(put_addr_str) {
+                    //     Ok(ok) => ok,
+                    //     Err((cash_err, base58_err)) => {
+                    //         return Err(ServerError::Address(cash_err, base58_err).into()).into()
+                    //     }
+                    // };
 
-                    let response = new_addr.and_then(move |addr_raw| {
-                        // Generate outputs
-                        let outputs = generate_outputs(addr_raw, &base_url, put_addr.into_body());
+                    // // Generate merchant URL
+                    // let base_url = format!("{}://{}", scheme, host);
+                    // let merchant_url = format!("{}{}", base_url, put_addr_path);
 
-                        // Collect payment details
-                        let payment_url = Some(format!("{}{}", base_url, PAYMENT_PATH));
-                        let payment_details = PaymentDetails {
-                            network: Some(SETTINGS.network.to_string()),
-                            time: current_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                            expires: Some(
-                                expiry_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                            ),
-                            memo: None,
-                            merchant_data: Some(merchant_url.as_bytes().to_vec()),
-                            outputs,
-                            payment_url,
-                        };
-                        let mut serialized_payment_details =
-                            Vec::with_capacity(payment_details.encoded_len());
-                        payment_details
-                            .encode(&mut serialized_payment_details)
-                            .unwrap();
+                    // // Generate outputs
+                    // let outputs = generate_outputs(addr_raw, &base_url, put_addr.into_body());
 
-                        // Generate payment invoice
-                        let pki_type = Some("none".to_string());
-                        let payment_invoice = PaymentRequest {
-                            pki_type,
-                            pki_data: None,
-                            payment_details_version: Some(1),
-                            serialized_payment_details,
-                            signature: None,
-                        };
-                        let mut payment_invoice_raw =
-                            Vec::with_capacity(payment_invoice.encoded_len());
-                        payment_invoice.encode(&mut payment_invoice_raw).unwrap();
+                    // // Collect payment details
+                    // let payment_url = Some(format!("{}{}", base_url, PAYMENT_PATH));
+                    // let payment_details = PaymentDetails {
+                    //     network: Some(SETTINGS.network.to_string()),
+                    //     time: current_time.duration_since(UNIX_EPOCH).unwrap().as_secs(),
+                    //     expires: Some(expiry_time.duration_since(UNIX_EPOCH).unwrap().as_secs()),
+                    //     memo: None,
+                    //     merchant_data: Some(merchant_url.as_bytes().to_vec()),
+                    //     outputs,
+                    //     payment_url,
+                    // };
+                    // let mut serialized_payment_details =
+                    //     Vec::with_capacity(payment_details.encoded_len());
+                    // payment_details
+                    //     .encode(&mut serialized_payment_details)
+                    //     .unwrap();
 
-                        HttpResponse::PaymentRequired()
-                            .content_type("application/bitcoincash-paymentrequest")
-                            .header("Content-Transfer-Encoding", "binary")
-                            .body(payment_invoice_raw)
-                    });
+                    // // Generate payment invoice
+                    // let pki_type = Some("none".to_string());
+                    // let payment_invoice = PaymentRequest {
+                    //     pki_type,
+                    //     pki_data: None,
+                    //     payment_details_version: Some(1),
+                    //     serialized_payment_details,
+                    //     signature: None,
+                    // };
+                    // let mut payment_invoice_raw = Vec::with_capacity(payment_invoice.encoded_len());
+                    // payment_invoice.encode(&mut payment_invoice_raw).unwrap();
 
-                    // Respond
-                    return Box::new(response.map(|resp| req.into_response(resp)));
+                    // let response = HttpResponse::PaymentRequired()
+                    //     .content_type("application/bitcoincash-paymentrequest")
+                    //     .header("Content-Transfer-Encoding", "binary")
+                    //     .body(payment_invoice_raw);
+                    // let (request, _) = req.into_parts();
+                    // return Ok(ServiceResponse::new(request, response));
                 }
-            },
-        };
+            };
 
-        // Decode token
-        let url_safe_config = base64::Config::new(base64::CharacterSet::UrlSafe, false);
-        let token = match base64::decode_config(&token_str, url_safe_config) {
-            Ok(some) => some,
-            Err(_) => {
-                return Box::new(ok(req.into_response(
+            // Decode token
+            let url_safe_config = base64::Config::new(base64::CharacterSet::UrlSafe, false);
+            let token = match base64::decode_config(&token_str, url_safe_config) {
+                Ok(some) => some,
+                Err(_) => {
+                    return Ok(req.into_response(
+                        ServerError::Payment(PaymentError::InvalidAuth).error_response(),
+                    ))
+                    .into()
+                }
+            };
+
+            // Generate merchant URL
+            let uri = req.uri();
+            let merchant_url = format!("{}://{}{}", scheme, host, uri.path());
+
+            // Validate
+            if !validate_token(merchant_url.as_bytes(), SETTINGS.secret.as_bytes(), &token) {
+                Ok(req.into_response(
                     ServerError::Payment(PaymentError::InvalidAuth).error_response(),
-                )))
+                ))
+                .into()
+            } else {
+                unreachable!()
+                // self.service.call(req).await
             }
         };
-
-        // Generate merchant URL
-        let uri = req.uri();
-        let merchant_url = format!("{}://{}{}", scheme, host, uri.path());
-
-        // Validate
-        if !validate_token(merchant_url.as_bytes(), SETTINGS.secret.as_bytes(), &token) {
-            Box::new(ok(req.into_response(
-                ServerError::Payment(PaymentError::InvalidAuth).error_response(),
-            )))
-        } else {
-            Box::new(self.service.call(req))
-        }
+        Box::pin(fut)
     }
 }
 
