@@ -117,7 +117,6 @@ pub async fn payment_handler(
     let mut redirect_url =
         Url::parse(str::from_utf8(&merchant_data).map_err(|_| PaymentError::InvalidMerchantDat)?)
             .map_err(|_| PaymentError::InvalidMerchantDat)?;
-    redirect_url.set_query(Some(&format!("code={}", token)));
 
     // Generate response
     Ok(HttpResponse::Accepted()
@@ -595,14 +594,12 @@ mod tests {
             loc.path()
         );
         assert_eq!(&loc_noquery, key_url);
-        let pair = loc.query_pairs().next().unwrap();
-        assert_eq!("code", pair.0);
-        assert_eq!(&format!("POP {}", pair.1), auth.to_str().unwrap());
 
         // TODO: More detail here
         // Check token works with code
         let req = test::TestRequest::put()
             .uri(loc.as_str())
+            .header(AUTHORIZATION, auth.clone())
             .set_payload(metadata_raw)
             .to_request();
         let resp = test::call_service(&mut app, req).await;

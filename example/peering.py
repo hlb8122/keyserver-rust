@@ -130,10 +130,12 @@ payment_ack = PaymentACK.FromString(response.content)
 print("PaymentACK memo:", payment_ack.memo)
 
 # Token URL for PUT
-token_url = response.headers["Location"]  # {key URL}?code={payment token}
+redirect_url = response.headers["Location"]
+token_header = response.headers["Authorization"]
 
 # Put metadata using payment token
-response = requests.put(url=token_url, data=raw_addr_meta)
+response = requests.put(url=redirect_url, data=raw_addr_meta, headers={
+                        "Authorization": token_header})
 
 # Get metadata
 response = requests.get(url=BASE_URL + "/keys/" + key_addr)
