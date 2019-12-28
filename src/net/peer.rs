@@ -51,8 +51,7 @@ impl PeerClient {
             Err(e) => return Err(e.into()),
         };
 
-        // Get then decode response
-
+        // Get response
         let response = self
             .client
             .get(url)
@@ -70,7 +69,8 @@ impl PeerClient {
         key_stream: impl Stream<Item = Result<(String, Address), StreamError>>,
     ) {
         key_stream
-            .for_each(|res| {        let client = self.clone();
+            .for_each(|res| {
+                let client = self.clone();
                 let key_db_inner = key_db.clone();
                 async move {
                     let (peer_addr, bitcoin_addr) = match res {

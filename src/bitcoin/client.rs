@@ -13,7 +13,7 @@ impl BitcoinClient {
         BitcoinClient(Arc::new(JsonClient::new(endpoint, username, password)))
     }
 
-    pub async fn get_new_addr(&mut self) -> Result<String, ClientError> {
+    pub async fn get_new_addr(&self) -> Result<String, ClientError> {
         let request = self.0.build_request("getnewaddress".to_string(), vec![]);
         self.0.send_request(&request).await?.into_result::<String>()
     }
