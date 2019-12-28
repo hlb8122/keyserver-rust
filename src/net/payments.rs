@@ -330,6 +330,7 @@ mod tests {
     use actix_web::{http::StatusCode, test, web, App};
     use bigdecimal::BigDecimal;
     use bitcoincash_addr::HashType;
+    use futures::TryFutureExt;
     use serde_json::json;
 
     use crate::{
@@ -355,7 +356,7 @@ mod tests {
         pub hex: String,
     }
 
-    fn generate_raw_tx(recv_addr: Vec<u8>, _data: Vec<u8>) -> Vec<u8> {
+    async fn generate_raw_tx(recv_addr: Vec<u8>, _data: Vec<u8>) -> Vec<u8> {
         let client = JsonClient::new(
             format!("http://{}:{}", SETTINGS.node_ip.clone(), SETTINGS.rpc_port),
             SETTINGS.rpc_username.clone(),
@@ -366,8 +367,10 @@ mod tests {
         let unspent_req = client.build_request("listunspent".to_string(), vec![]);
         let utxos = client
             .send_request(&unspent_req)
-            .and_then(|resp| resp.into_result::<Vec<Outpoint>>());
-        let utxos = actix_web::test::block_on(utxos).unwrap();
+            .await
+            .unwrap()
+            .into_result::<Vec<Outpoint>>()
+            .unwrap();
         let utxo = utxos.get(0).unwrap();
 
         let inputs_json = json!(
@@ -395,8 +398,10 @@ mod tests {
         );
         let unsigned_raw_tx = client
             .send_request(&raw_tx_req)
-            .and_then(|resp| resp.into_result::<String>());
-        let unsigned_raw_tx = actix_web::test::block_on(unsigned_raw_tx).unwrap();
+            .await
+            .unwrap()
+            .into_result::<String>()
+            .unwrap();
 
         // Sign raw transaction
         let signed_raw_req = client.build_request(
@@ -405,14 +410,16 @@ mod tests {
         );
         let signed_raw_tx = client
             .send_request(&signed_raw_req)
-            .and_then(|resp| resp.into_result::<SignedHex>())
-            .map(|signed_hex| signed_hex.hex);
-        let signed_raw_tx = actix_web::test::block_on(signed_raw_tx).unwrap();
+            .await
+            .unwrap()
+            .into_result::<SignedHex>()
+            .unwrap()
+            .hex;
         hex::decode(signed_raw_tx).unwrap()
     }
 
-    #[test]
-    fn test_put_no_token() {
+    #[actix_rt::test]
+    async fn test_put_no_token() {
         // Init db
         let key_db = KeyDB::try_new("./test_db/no_token").unwrap();
 
@@ -432,7 +439,8 @@ mod tests {
                 .data(key_db)
                 .wrap(CheckPayment::new(bitcoin_client, wallet_state)) // Apply payment check to put key
                 .route("/keys/{addr}", web::put().to(put_key)),
-        );
+        )
+        .await;
 
         // Put key with no token
         let (address_base58, metadata_raw) = generate_address_metadata();
@@ -441,18 +449,22 @@ mod tests {
             .uri(key_path)
             .set_payload(metadata_raw)
             .to_request();
-        let mut resp = test::call_service(&mut app, req);
+        let mut resp = test::call_service(&mut app, req).await;
 
         // Check status
         assert_eq!(resp.status(), StatusCode::PAYMENT_REQUIRED);
 
         // Get invoice
-        let body_vec = resp.take_body().collect().wait().unwrap();
-        let invoice_raw = body_vec.get(0).unwrap();
+        let mut payload = resp.take_body();
+        let mut invoice_raw = BytesMut::new();
+        while let Some(item) = payload.next().await {
+            invoice_raw.extend_from_slice(&item.unwrap());
+        }
         let invoice = PaymentRequest::decode(invoice_raw).unwrap();
 
         // Check invoice is valid
-        let payment_details = PaymentDetails::decode(invoice.serialized_payment_details).unwrap();
+        let payment_details =
+            PaymentDetails::decode(&invoice.serialized_payment_details[..]).unwrap();
         assert_eq!(payment_details.network.unwrap(), "regnet".to_string());
         assert!(payment_details.expires.unwrap() > payment_details.time);
         assert!(
@@ -469,8 +481,8 @@ mod tests {
         assert_eq!(payment_details.merchant_data.unwrap(), key_path.as_bytes())
     }
 
-    #[test]
-    fn test_put_payment() {
+    #[actix_rt::test]
+    async fn test_put_payment() {
         // Init db
         let key_db = KeyDB::try_new("./test_db/payment").unwrap();
 
@@ -495,15 +507,16 @@ mod tests {
                                 bitcoin_client.clone(),
                                 wallet_state.clone(),
                             )) // Apply payment check to put key
-                            .route(web::put().to_async(put_key)),
+                            .route(web::put().to(put_key)),
                     ),
                 )
                 .service(
                     web::resource("/payments")
                         .data((bitcoin_client, wallet_state))
-                        .route(web::post().to_async(payment_handler)),
+                        .route(web::post().to(payment_handler)),
                 ),
-        );
+        )
+        .await;
 
         // Put key with no token
         let (address_base58, metadata_raw) = generate_address_metadata();
@@ -512,16 +525,20 @@ mod tests {
             .uri(key_url)
             .set_payload(metadata_raw.clone())
             .to_request();
-        let mut resp = test::call_service(&mut app, req);
+        let mut resp = test::call_service(&mut app, req).await;
 
         // Create payment
-        let body_vec = resp.take_body().collect().wait().unwrap();
-        let invoice_raw = body_vec.get(0).unwrap();
+        let mut payload = resp.take_body();
+        let mut invoice_raw = BytesMut::new();
+        while let Some(item) = payload.next().await {
+            invoice_raw.extend_from_slice(&item.unwrap());
+        }
         let invoice = PaymentRequest::decode(invoice_raw).unwrap();
-        let payment_details = PaymentDetails::decode(invoice.serialized_payment_details).unwrap();
+        let payment_details =
+            PaymentDetails::decode(&invoice.serialized_payment_details[..]).unwrap();
         let p2pkh = payment_details.outputs.get(0).unwrap();
         let addr = p2pkh.script[3..23].to_vec();
-        let tx = generate_raw_tx(addr, vec![]); // TODO: Add op_return
+        let tx = generate_raw_tx(addr, vec![]).await; // TODO: Add op_return
         let payment = Payment {
             merchant_data: payment_details.merchant_data,
             memo: None,
@@ -538,7 +555,7 @@ mod tests {
             .set_payload(payment_raw.clone())
             .header(ACCEPT, "application/bitcoincash-paymentack")
             .to_request();
-        let resp = test::call_service(&mut app, req);
+        let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::NOT_ACCEPTABLE);
 
         // Check accept header is enforced
@@ -547,7 +564,7 @@ mod tests {
             .set_payload(payment_raw.clone())
             .header(CONTENT_TYPE, "application/bitcoincash-payment")
             .to_request();
-        let resp = test::call_service(&mut app, req);
+        let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
 
         // Check payment ack and a token
@@ -557,11 +574,14 @@ mod tests {
             .header(CONTENT_TYPE, "application/bitcoincash-payment")
             .header(ACCEPT, "application/bitcoincash-paymentack")
             .to_request();
-        let mut resp = test::call_service(&mut app, req);
+        let mut resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::ACCEPTED);
-        let body_vec = resp.take_body().collect().wait().unwrap();
-        let payment_ack_raw = body_vec.get(0).unwrap();
-        let payment_ack = PaymentAck::decode(payment_ack_raw).unwrap();
+        let mut payload = resp.take_body();
+        let mut payment_ack_raw = BytesMut::new();
+        while let Some(item) = payload.next().await {
+            payment_ack_raw.extend_from_slice(&item.unwrap());
+        }
+        let payment_ack = PaymentAck::decode(&payment_ack_raw[..]).unwrap();
         assert_eq!(payment, payment_ack.payment);
 
         // Check token
@@ -585,7 +605,7 @@ mod tests {
             .uri(loc.as_str())
             .set_payload(metadata_raw)
             .to_request();
-        let resp = test::call_service(&mut app, req);
+        let resp = test::call_service(&mut app, req).await;
         assert_eq!(resp.status(), StatusCode::OK);
     }
 }

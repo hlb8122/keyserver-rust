@@ -147,15 +147,16 @@ mod tests {
         (address_base58, metadata_raw)
     }
 
-    #[test]
-    fn test_index_put_ok() {
+    #[actix_rt::test]
+    async fn test_index_put_ok() {
         // Init routes
         let key_db = KeyDB::try_new("./test_db/put_ok").unwrap();
         let mut app = test::init_service(
             App::new()
                 .data(key_db)
                 .route("/keys/{addr}", web::put().to(put_key)),
-        );
+        )
+        .await;
 
         let (address_base58, metadata_raw) = generate_address_metadata();
 
@@ -163,19 +164,20 @@ mod tests {
             .uri(&format!("/keys/{}", address_base58))
             .set_payload(metadata_raw)
             .to_request();
-        let resp = test::block_on(app.call(req)).unwrap();
+        let resp = app.call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
     }
 
-    #[test]
-    fn test_index_put_malformed_payload() {
+    #[actix_rt::test]
+    async fn test_index_put_malformed_payload() {
         // Init routes
         let key_db = KeyDB::try_new("./test_db/put_malformed").unwrap();
         let mut app = test::init_service(
             App::new()
                 .data(key_db)
                 .route("/keys/{addr}", web::put().to(put_key)),
-        );
+        )
+        .await;
 
         let (address_base58, _) = generate_address_metadata();
 
@@ -183,19 +185,20 @@ mod tests {
             .uri(&format!("/keys/{}", address_base58))
             .set_payload(vec![2, 3, 5])
             .to_request();
-        let resp = test::block_on(app.call(req)).unwrap();
+        let resp = app.call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
-    #[test]
-    fn test_index_put_invalid_address() {
+    #[actix_rt::test]
+    async fn test_index_put_invalid_address() {
         // Init routes
         let key_db = KeyDB::try_new("./test_db/put_invalid_addr").unwrap();
         let mut app = test::init_service(
             App::new()
                 .data(key_db)
                 .route("/keys/{addr}", web::put().to(put_key)),
-        );
+        )
+        .await;
 
         let (_, metadata_raw) = generate_address_metadata();
 
@@ -203,48 +206,50 @@ mod tests {
             .uri(&format!("/keys/{}", "invalid"))
             .set_payload(metadata_raw)
             .to_request();
-        let resp = test::block_on(app.call(req)).unwrap();
+        let resp = app.call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
-    #[test]
-    fn test_index_get_invalid_address() {
+    #[actix_rt::test]
+    async fn test_index_get_invalid_address() {
         // Init routes
         let key_db = KeyDB::try_new("./test_db/get_invalid_addr").unwrap();
         let mut app = test::init_service(
             App::new()
                 .data(key_db)
                 .route("/keys/{addr}", web::get().to(get_key)),
-        );
+        )
+        .await;
 
         let req = test::TestRequest::get()
             .uri(&format!("/keys/{}", "invalid"))
             .to_request();
-        let resp = test::block_on(app.call(req)).unwrap();
+        let resp = app.call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
-    #[test]
-    fn test_index_get_not_found() {
+    #[actix_rt::test]
+    async fn test_index_get_not_found() {
         // Init routes
         let key_db = KeyDB::try_new("./test_db/get_not_found").unwrap();
         let mut app = test::init_service(
             App::new()
                 .data(key_db)
                 .route("/keys/{addr}", web::get().to(get_key)),
-        );
+        )
+        .await;
 
         let (address_base58, _) = generate_address_metadata();
 
         let req = test::TestRequest::get()
             .uri(&format!("/keys/{}", address_base58))
             .to_request();
-        let resp = test::block_on(app.call(req)).unwrap();
+        let resp = app.call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 
-    #[test]
-    fn test_index_put_get() {
+    #[actix_rt::test]
+    async fn test_index_put_get() {
         // Init routes
         let key_db = KeyDB::try_new("./test_db/put_get").unwrap();
         let mut app = test::init_service(
@@ -252,7 +257,8 @@ mod tests {
                 .data(key_db)
                 .route("/keys/{addr}", web::get().to(get_key))
                 .route("/keys/{addr}", web::put().to(put_key)),
-        );
+        )
+        .await;
 
         let (address_base58, metadata_raw) = generate_address_metadata();
 
@@ -261,17 +267,17 @@ mod tests {
             .uri(&format!("/keys/{}", address_base58))
             .set_payload(metadata_raw.clone())
             .to_request();
-        let resp = test::block_on(app.call(req)).unwrap();
+        let resp = app.call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
         // Get metadata
         let req = test::TestRequest::get()
             .uri(&format!("/keys/{}", address_base58))
             .to_request();
-        let resp = test::block_on(app.call(req)).unwrap();
+        let resp = app.call(req).await.unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
 
-        let body = test::read_body(resp);
+        let body = test::read_body(resp).await;
         assert_eq!(&body[..], &metadata_raw[..]);
     }
 }
