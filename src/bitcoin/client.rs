@@ -2,7 +2,6 @@ use crate::net::jsonrpc_client::*;
 
 use std::sync::Arc;
 
-use futures::Future;
 use serde_json::Value;
 
 #[derive(Clone)]

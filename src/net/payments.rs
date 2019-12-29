@@ -22,15 +22,9 @@ use futures::{
     task::{Context, Poll},
 };
 use prost::Message;
-use serde_derive::Deserialize;
 use url::Url;
 
-use crate::{
-    bitcoin::*,
-    crypto::{AddressCodec, CashAddrCodec},
-    models::*,
-    SETTINGS,
-};
+use crate::{bitcoin::*, models::*, SETTINGS};
 
 use super::errors::*;
 
@@ -38,11 +32,6 @@ use crate::crypto::token::*;
 
 const PAYMENT_PATH: &str = "/payments";
 pub const VALID_DURATION: u64 = 30;
-
-#[derive(Deserialize)]
-pub struct TokenQuery {
-    code: String,
-}
 
 /// Payment handler
 pub async fn payment_handler(
@@ -77,7 +66,7 @@ pub async fn payment_handler(
     };
 
     // Assume first tx
-    let tx = Transaction::deserialize(tx_raw).map_err(|err| PaymentError::from(err))?;
+    let tx = Transaction::deserialize(tx_raw).map_err(PaymentError::from)?;
 
     // Check outputs
     let wallet_data = &data.1;
@@ -114,7 +103,7 @@ pub async fn payment_handler(
     );
 
     // Generate paymentredirect
-    let mut redirect_url =
+    let redirect_url =
         Url::parse(str::from_utf8(&merchant_data).map_err(|_| PaymentError::InvalidMerchantDat)?)
             .map_err(|_| PaymentError::InvalidMerchantDat)?;
 
@@ -226,7 +215,7 @@ where
                                 })?;
                             let network: Network = addr.network.clone().into();
                             if network != SETTINGS.network || addr.hash_type != HashType::Key {
-                                return Err(ServerError::Payment(PaymentError::MismatchedNetwork))?;
+                                return Err(ServerError::Payment(PaymentError::MismatchedNetwork).into());
                                 // TODO: Finer grained error here
                             }
                             let addr_raw = addr.into_body();

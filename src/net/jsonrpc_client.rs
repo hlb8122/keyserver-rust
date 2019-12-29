@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 
-use futures::{future, prelude::*};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, value::from_value, Value};
 
@@ -69,7 +68,7 @@ impl JsonClient {
 
         let parsed_resp: Response = raw_response.json().await.map_err(ClientError::from)?;
         if parsed_resp.id != request_id {
-            Err(ClientError::NonceMismatch).into()
+            Err(ClientError::NonceMismatch)
         } else {
             Ok(parsed_resp)
         }

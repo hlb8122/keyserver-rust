@@ -134,9 +134,7 @@ impl error::ResponseError for ServerError {
             ServerError::UnsupportedSigScheme => HttpResponse::BadRequest().body(self.to_string()),
             ServerError::Crypto(err) => err.error_response(),
             ServerError::Payment(err) => err.error_response(),
-            ServerError::Address(cash_err, base58_err) => {
-                HttpResponse::BadRequest().body(self.to_string())
-            }
+            ServerError::Address(_, _) => HttpResponse::BadRequest().body(self.to_string()),
         }
     }
 }

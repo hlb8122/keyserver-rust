@@ -12,9 +12,8 @@ pub mod settings;
 use std::io;
 
 use actix_cors::Cors;
-use actix_web::{middleware::Logger, web, App, HttpServer};
+use actix_web::{http::header, middleware::Logger, web, App, HttpServer};
 use env_logger::Env;
-use futures::prelude::*;
 use lazy_static::lazy_static;
 
 use crate::{
@@ -71,11 +70,21 @@ async fn main() -> io::Result<()> {
         let wallet_state_inner = wallet_state.clone();
         let bitcoin_client_inner = bitcoin_client.clone();
 
+        let cors = Cors::new()
+            .allowed_methods(vec!["GET", "PUT", "POST"])
+            .allowed_headers(vec![header::AUTHORIZATION, header::CONTENT_TYPE])
+            .expose_headers(vec![
+                header::AUTHORIZATION,
+                header::ACCEPT,
+                header::LOCATION,
+            ])
+            .finish();
+
         // Init app
         App::new()
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
-            // .wrap(Cors::new())
+            .wrap(cors)
             .service(
                 // Key scope
                 web::scope("/keys").service(
