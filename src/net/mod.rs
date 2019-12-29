@@ -11,7 +11,7 @@ use prost::Message;
 use crate::{
     crypto::{authentication::validate, ecdsa::Secp256k1, Address},
     db::KeyDB,
-    models::{AddressMetadata, Payload},
+    models::address_metadata::{AddressMetadata, Payload},
 };
 
 use errors::ServerError;

@@ -12,7 +12,7 @@ use std::{
 use bitcoin::{Transaction, TxOut};
 use serde::Deserialize;
 
-use crate::{crypto::Address, models::Output, SETTINGS};
+use crate::{crypto::Address, models::bip70::Output, SETTINGS};
 
 pub use client::BitcoinClient;
 

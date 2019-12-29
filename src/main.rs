@@ -24,7 +24,12 @@ use crate::{
 };
 
 pub mod models {
-    include!(concat!(env!("OUT_DIR"), "/models.rs"));
+    pub mod bip70 {
+        include!(concat!(env!("OUT_DIR"), "/bip70.rs"));
+    }
+    pub mod address_metadata {
+        include!(concat!(env!("OUT_DIR"), "/address_metadata.rs"));
+    }
 }
 
 lazy_static! {
@@ -38,7 +43,7 @@ async fn main() -> io::Result<()> {
     info!("starting server @ {}", SETTINGS.bind);
 
     // Open DB
-    let key_db = KeyDB::try_new(&SETTINGS.db_path).unwrap();
+    let key_db = KeyDB::try_new(&SETTINGS.db_path).expect("failed to open database");
 
     // Init wallet
     let wallet_state = WalletState::default();
@@ -70,6 +75,7 @@ async fn main() -> io::Result<()> {
         let wallet_state_inner = wallet_state.clone();
         let bitcoin_client_inner = bitcoin_client.clone();
 
+        // Init CORs
         let cors = Cors::new()
             .allowed_methods(vec!["GET", "PUT", "POST"])
             .allowed_headers(vec![header::AUTHORIZATION, header::CONTENT_TYPE])

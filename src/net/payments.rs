@@ -24,7 +24,11 @@ use futures::{
 use prost::Message;
 use url::Url;
 
-use crate::{bitcoin::*, models::*, SETTINGS};
+use crate::{
+    bitcoin::*,
+    models::{bip70::*},
+    SETTINGS,
+};
 
 use super::errors::*;
 
@@ -215,7 +219,9 @@ where
                                 })?;
                             let network: Network = addr.network.clone().into();
                             if network != SETTINGS.network || addr.hash_type != HashType::Key {
-                                return Err(ServerError::Payment(PaymentError::MismatchedNetwork).into());
+                                return Err(
+                                    ServerError::Payment(PaymentError::MismatchedNetwork).into()
+                                );
                                 // TODO: Finer grained error here
                             }
                             let addr_raw = addr.into_body();

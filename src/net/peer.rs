@@ -10,7 +10,7 @@ use url::ParseError;
 use crate::{
     crypto::{authentication::validate, ecdsa::Secp256k1, Address},
     db::KeyDB,
-    models::{AddressMetadata, Payload},
+    models::address_metadata::{AddressMetadata, Payload},
     payments::VALID_DURATION,
 };
 

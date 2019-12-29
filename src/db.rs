@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     crypto::Address,
-    models::{AddressMetadata, Payload},
+    models::address_metadata::{AddressMetadata, Payload},
 };
 use prost::Message;
 use rocksdb::{CompactionDecision, Error, Options, DB};
