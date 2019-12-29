@@ -24,11 +24,7 @@ use futures::{
 use prost::Message;
 use url::Url;
 
-use crate::{
-    bitcoin::*,
-    models::{bip70::*},
-    SETTINGS,
-};
+use crate::{bitcoin::*, models::bip70::*, SETTINGS};
 
 use super::errors::*;
 
@@ -323,15 +319,15 @@ mod tests {
 
     use actix_web::{http::StatusCode, test, web, App};
     use bigdecimal::BigDecimal;
-    use bitcoincash_addr::HashType;
+    use bitcoincash_addr::{AddressCodec, Base58Codec, HashType};
     use futures::TryFutureExt;
+    use serde::Deserialize;
     use serde_json::json;
 
     use crate::{
         bitcoin::PRICE,
-        crypto::Base58Codec,
         db::KeyDB,
-        models::PaymentRequest,
+        models::bip70::PaymentRequest,
         net::{jsonrpc_client::JsonClient, tests::generate_address_metadata, *},
     };
 

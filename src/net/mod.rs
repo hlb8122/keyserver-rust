@@ -75,7 +75,7 @@ mod tests {
     use super::*;
     use crate::{
         crypto::{ecdsa::Secp256k1PublicKey, *},
-        models::*,
+        models::address_metadata::*,
         SETTINGS,
     };
     use actix_service::Service;
