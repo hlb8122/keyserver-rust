@@ -1,4 +1,4 @@
-use crate::{crypto::*, models::AddressMetadata, net::errors::ValidationError};
+use crate::{crypto::*, models::address_metadata::AddressMetadata, net::errors::ValidationError};
 
 use bitcoin_hashes::{sha256, Hash};
 
@@ -11,7 +11,7 @@ pub fn validate<S: SigScheme>(
 
     // Check preimage
     let meta_addr = meta_pk.to_raw_address();
-    let expected_addr = addr.as_ref();
+    let expected_addr = addr.as_body();
     if meta_addr != expected_addr {
         return Err(ValidationError::Preimage);
     }

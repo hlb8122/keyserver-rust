@@ -41,7 +41,7 @@ impl Settings {
         s.set_default("network", "regnet")?;
 
         // Load config from file
-        let mut default_config = home_dir.clone();
+        let mut default_config = home_dir;
         default_config.push(".keyserver-rust/config");
         let default_config_str = default_config.to_str().unwrap();
         let config_path = matches.value_of("config").unwrap_or(default_config_str);

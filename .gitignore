@@ -21,3 +21,5 @@ db/
 test_db/
 
 example/__pycache__/
+
+.vscode/

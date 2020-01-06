@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     crypto::Address,
-    models::{AddressMetadata, Payload},
+    models::address_metadata::{AddressMetadata, Payload},
 };
 use prost::Message;
 use rocksdb::{CompactionDecision, Error, Options, DB};
@@ -23,7 +23,7 @@ fn expired(payload: &Payload) -> bool {
 fn ttl_filter(_level: u32, _key: &[u8], value: &[u8]) -> CompactionDecision {
     // This panics if the bytes stored are fucked
     let metadata = AddressMetadata::decode(value).unwrap();
-    let payload = Payload::decode(metadata.serialized_payload).unwrap();
+    let payload = Payload::decode(&metadata.serialized_payload[..]).unwrap();
     if expired(&payload) {
         // Payload has expired
         CompactionDecision::Remove
@@ -51,21 +51,21 @@ impl KeyDB {
     pub fn put(&self, addr: &Address, metadata: &AddressMetadata) -> Result<(), Error> {
         let mut raw_metadata = Vec::with_capacity(metadata.encoded_len());
         metadata.encode(&mut raw_metadata).unwrap();
-        self.0.put(&addr, raw_metadata)
+        self.0.put(addr.as_body(), raw_metadata)
     }
 
     pub fn get(&self, addr: &Address) -> Result<Option<AddressMetadata>, Error> {
         // This panics if stored bytes are fucked
         let metadata_res = self
             .0
-            .get(&addr)
+            .get(addr.as_body())
             .map(|opt_dat| opt_dat.map(|dat| AddressMetadata::decode(&dat[..]).unwrap()));
 
         if let Ok(Some(metadata)) = &metadata_res {
             let raw_payload = &metadata.serialized_payload;
-            let payload = Payload::decode(raw_payload).unwrap();
+            let payload = Payload::decode(&raw_payload[..]).unwrap();
             if expired(&payload) {
-                self.0.delete(&addr)?;
+                self.0.delete(addr.as_body())?;
                 Ok(None)
             } else {
                 metadata_res
@@ -82,7 +82,7 @@ impl KeyDB {
     ) -> Result<Result<(), ValidationError>, Error> {
         if let Some(old_metadata) = self.get(addr)? {
             // This panics if stored bytes are fucked
-            let old_payload = Payload::decode(old_metadata.serialized_payload).unwrap();
+            let old_payload = Payload::decode(&old_metadata.serialized_payload[..]).unwrap();
             if new_payload.timestamp < old_payload.timestamp {
                 // Timestamp is outdated
                 return Ok(Err(ValidationError::Outdated));

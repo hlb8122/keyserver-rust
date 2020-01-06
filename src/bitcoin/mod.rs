@@ -12,13 +12,14 @@ use std::{
 use bitcoin::{Transaction, TxOut};
 use serde::Deserialize;
 
-use crate::{crypto::Address, models::Output, SETTINGS};
+use crate::{crypto::Address, models::bip70::Output, SETTINGS};
 
 pub use client::BitcoinClient;
 
 const KEYSERVER_PREFIX: &[u8; 9] = b"keyserver";
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum Network {
     Mainnet = 0,
     Testnet = 1,

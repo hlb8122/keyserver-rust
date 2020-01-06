@@ -2,7 +2,7 @@ use std::fmt;
 
 use actix_web::{error, HttpResponse};
 use bitcoin::consensus::encode::Error as TxDeserializeError;
-use bitcoincash_addr::AddressError;
+use bitcoincash_addr::{base58, cashaddr};
 use prost::DecodeError;
 use rocksdb::Error as RocksError;
 
@@ -46,7 +46,7 @@ pub enum ServerError {
     PayloadDecode,
     UnsupportedSigScheme,
     Payment(PaymentError),
-    Address(AddressError),
+    Address(cashaddr::DecodingError, base58::DecodingError),
 }
 
 impl fmt::Display for ServerError {
@@ -60,15 +60,17 @@ impl fmt::Display for ServerError {
             ServerError::UnsupportedSigScheme => "signature scheme not supported",
             ServerError::Payment(err) => return err.fmt(f),
             ServerError::Validation(err) => return err.fmt(f),
-            ServerError::Address(err) => return err.fmt(f),
+            ServerError::Address(cash_err, base58_err) => {
+                return write!(f, "{}, {}", cash_err, base58_err)
+            }
         };
         write!(f, "{}", printable)
     }
 }
 
-impl From<AddressError> for ServerError {
-    fn from(err: AddressError) -> Self {
-        ServerError::Address(err)
+impl From<(cashaddr::DecodingError, base58::DecodingError)> for ServerError {
+    fn from((cash_err, base58_err): (cashaddr::DecodingError, base58::DecodingError)) -> Self {
+        ServerError::Address(cash_err, base58_err)
     }
 }
 
@@ -132,7 +134,7 @@ impl error::ResponseError for ServerError {
             ServerError::UnsupportedSigScheme => HttpResponse::BadRequest().body(self.to_string()),
             ServerError::Crypto(err) => err.error_response(),
             ServerError::Payment(err) => err.error_response(),
-            ServerError::Address(err) => HttpResponse::BadRequest().body(err.to_string()),
+            ServerError::Address(_, _) => HttpResponse::BadRequest().body(self.to_string()),
         }
     }
 }
