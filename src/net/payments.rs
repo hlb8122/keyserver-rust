@@ -21,6 +21,7 @@ use futures::{
     prelude::*,
     task::{Context, Poll},
 };
+use json_rpc::clients::http::HttpConnector;
 use prost::Message;
 use url::Url;
 
@@ -37,7 +38,7 @@ pub const VALID_DURATION: u64 = 30;
 pub async fn payment_handler(
     req: HttpRequest,
     mut payload: web::Payload,
-    data: web::Data<(BitcoinClient, WalletState)>,
+    data: web::Data<(BitcoinClient<HttpConnector>, WalletState)>,
 ) -> Result<HttpResponse, ServerError> {
     // Check headers
     let headers = req.headers();
@@ -118,10 +119,10 @@ pub async fn payment_handler(
 /*
 Payment middleware
 */
-pub struct CheckPayment(BitcoinClient, WalletState);
+pub struct CheckPayment(BitcoinClient<HttpConnector>, WalletState);
 
 impl CheckPayment {
-    pub fn new(client: BitcoinClient, wallet_state: WalletState) -> Self {
+    pub fn new(client: BitcoinClient<HttpConnector>, wallet_state: WalletState) -> Self {
         CheckPayment(client, wallet_state)
     }
 }
@@ -148,7 +149,7 @@ where
 }
 pub struct CheckPaymentMiddleware<S> {
     service: S,
-    client: BitcoinClient,
+    client: BitcoinClient<HttpConnector>,
     wallet_state: WalletState,
 }
 
@@ -320,7 +321,7 @@ mod tests {
     use actix_web::{http::StatusCode, test, web, App};
     use bigdecimal::BigDecimal;
     use bitcoincash_addr::{AddressCodec, Base58Codec, HashType};
-    use futures::TryFutureExt;
+    use json_rpc::prelude::*;
     use serde::Deserialize;
     use serde_json::json;
 
@@ -328,7 +329,7 @@ mod tests {
         bitcoin::PRICE,
         db::KeyDB,
         models::bip70::PaymentRequest,
-        net::{jsonrpc_client::JsonClient, tests::generate_address_metadata, *},
+        net::{tests::generate_address_metadata, *},
     };
 
     use super::*;
@@ -347,19 +348,24 @@ mod tests {
     }
 
     async fn generate_raw_tx(recv_addr: Vec<u8>, _data: Vec<u8>) -> Vec<u8> {
-        let client = JsonClient::new(
+        let client = HttpClient::new(
             format!("http://{}:{}", SETTINGS.node_ip.clone(), SETTINGS.rpc_port),
-            SETTINGS.rpc_username.clone(),
-            SETTINGS.rpc_password.clone(),
+            Some(SETTINGS.rpc_username.clone()),
+            Some(SETTINGS.rpc_password.clone()),
         );
 
         // Get unspent output
-        let unspent_req = client.build_request("listunspent".to_string(), vec![]);
+        let unspent_req = client
+            .build_request()
+            .method("listunspent")
+            .finish()
+            .unwrap();
         let utxos = client
-            .send_request(&unspent_req)
+            .send(unspent_req)
             .await
             .unwrap()
             .into_result::<Vec<Outpoint>>()
+            .unwrap()
             .unwrap();
         let utxo = utxos.get(0).unwrap();
 
@@ -371,7 +377,7 @@ mod tests {
         );
 
         let bitcoin_amount = BigDecimal::from(PRICE) / 100_000_000;
-        let fee = BigDecimal::from(1) / 100_000_000;
+        let fee = BigDecimal::from(400) / 100_000_000;
         let change = &utxo.amount - &bitcoin_amount - fee;
         let outputs_json = json!([
             {
@@ -382,27 +388,33 @@ mod tests {
         ]);
 
         // Get raw transaction
-        let raw_tx_req = client.build_request(
-            "createrawtransaction".to_string(),
-            vec![inputs_json, outputs_json],
-        );
+        let raw_tx_req = client
+            .build_request()
+            .method("createrawtransaction")
+            .params(vec![inputs_json, outputs_json])
+            .finish()
+            .unwrap();
         let unsigned_raw_tx = client
-            .send_request(&raw_tx_req)
+            .send(raw_tx_req)
             .await
             .unwrap()
             .into_result::<String>()
+            .unwrap()
             .unwrap();
 
         // Sign raw transaction
-        let signed_raw_req = client.build_request(
-            "signrawtransactionwithwallet".to_string(),
-            vec![json!(unsigned_raw_tx)],
-        );
+        let signed_raw_req = client
+            .build_request()
+            .method("signrawtransactionwithwallet")
+            .params(vec![json!(unsigned_raw_tx)])
+            .finish()
+            .unwrap();
         let signed_raw_tx = client
-            .send_request(&signed_raw_req)
+            .send(signed_raw_req)
             .await
             .unwrap()
             .into_result::<SignedHex>()
+            .unwrap()
             .unwrap()
             .hex;
         hex::decode(signed_raw_tx).unwrap()

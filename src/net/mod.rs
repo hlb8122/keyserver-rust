@@ -1,5 +1,4 @@
 pub mod errors;
-pub mod jsonrpc_client;
 pub mod payments;
 pub mod peer;
 
